@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.6
+// @version      0.1.7
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -72,7 +72,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   new MutationObserver(() => { if (isMobile()) setViewport(); })
     .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['content'] });
-  const VERSION = 'v0.1.6';
+  const VERSION = 'v0.1.7';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -434,6 +434,9 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
    background:radial-gradient(120% 70% at 20% 0%,rgba(255,255,255,.55),transparent 55%),linear-gradient(115deg,transparent 45%,rgba(255,255,255,.25) 55%,transparent 65%)}
  #kfm-pager.kfm-pg-solo{padding-bottom:6px!important}
  #kfm-pager.kfm-hand-left{padding:6px 12px 6px 4px!important}
+/* v0.1.7: 件数欄はボタン類の残り幅（最低44px）を使い、中身は fitCount で縮める */
+ #kfm-pager .kfm-pg-info{flex:1 1 0!important;min-width:44px!important;overflow:visible!important}
+ #kfm-pager .kfm-pg-sum>span{display:block;white-space:nowrap;overflow:visible!important;text-overflow:clip!important}
  #kfm-pager .kfm-pg-sum{color:#333}
  #kfm-pager .kfm-pg-sum>span:first-child{font-weight:700;color:#111}
  #kfm-pager .kfm-pg-icons>button{color:#555!important}
@@ -1481,12 +1484,14 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const used = r && r.height ? Math.max(r.height + bottomBarH(), window.innerHeight - r.top) : 0;   // v0.1.5: 浮いたバーの下の余白も含める
     list.style.paddingBottom = Math.ceil(used + 20) + 'px';
   }
-  // v0.1.6: 件数を枠に収める。カンマなし→文字を小さく（最小10px）→1行目を開始番号だけに。「…」で数字を隠さない
+  // v0.1.7: 件数を必ず全部見せる。枠＝ボタン類を除いた残り幅。2行（範囲 / 総数）を12→9pxで試し、
+  // 入らなければ3行（開始– / 終了 / /総数件）にする。「…」や切り取りはしない
   function fitCount(se, n) {
-    const fits = () => se.scrollWidth <= se.clientWidth + 0.5 && [...se.children].every(c => c.scrollWidth <= se.clientWidth + 0.5);
-    const set = (a, b) => { se.textContent = ''; se.appendChild(el('span', null, a)); se.appendChild(el('span', null, b)); };
-    const tries = [[`${n[0]}–${n[1]}`, `/ ${n[2]}件`], [`${n[0]}–`, `/ ${n[2]}件`], [`${n[0]}–`, `/${n[2]}`]];
-    for (const [a, b] of tries) { set(a, b); for (let f = 12; f >= 10; f -= 0.5) { se.style.fontSize = f + 'px'; if (!se.clientWidth || fits()) return; } }
+    const box = se.parentElement || se;
+    const fits = () => [...se.children].every(c => c.scrollWidth <= box.clientWidth + 0.5) && se.scrollHeight <= (se.closest('#kfm-pager') || box).clientHeight + 0.5;
+    const set = (...a) => { se.textContent = ''; a.forEach(t => se.appendChild(el('span', null, t))); };
+    const tries = [[`${n[0]}–${n[1]}`, `/ ${n[2]}件`], [`${n[0]}–${n[1]}`, `/${n[2]}件`], [`${n[0]}–`, n[1], `/${n[2]}件`]];
+    for (const t of tries) { set(...t); for (let f = 12; f >= 9; f -= 0.5) { se.style.fontSize = f + 'px'; se.style.lineHeight = t.length > 2 ? '1.1' : ''; if (!box.clientWidth || fits()) return; } }
   }
   window.addEventListener('resize', () => { const se = document.querySelector('#kfm-pager .kfm-pg-sum'); if (se && se.dataset.k) fitCount(se, se.dataset.k.split('|').map(x => x.replace(/,/g, ''))); });
   function updatePager(wrap) {
