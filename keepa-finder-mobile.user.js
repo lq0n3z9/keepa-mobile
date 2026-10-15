@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.7
+// @version      0.1.8
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -72,10 +72,11 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   new MutationObserver(() => { if (isMobile()) setViewport(); })
     .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['content'] });
-  const VERSION = 'v0.1.7';
+  const VERSION = 'v0.1.8';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
+  const cssEsc = s => { try { return (window.CSS && CSS.escape) ? cssEsc(s) : String(s).replace(/[^a-zA-Z0-9_-]/g, '\\$&'); } catch (e) { return String(s); } };
   const has = (label, list) => list.some(k => norm(label).toLowerCase().replace(/\s/g, '')
     .includes(k.toLowerCase().replace(/\s/g, '')));
 
@@ -588,6 +589,46 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  html.kfm.kfm-product,html.kfm.kfm-product body{max-width:none!important;width:auto!important;overflow:visible!important}
  html.kfm.kfm-product #topPanel,html.kfm.kfm-product #wrapper,html.kfm.kfm-product .mainContent,html.kfm.kfm-product .knav-row{max-width:none!important}
  html.kfm.kfm-product .kfm-gridhost,html.kfm.kfm-product #kfm-list{display:none!important}
+
+ /* v0.1.8: 列を設定（content-column）を触らない・スマホ用シート */
+ html.kfm .content-column,html.kfm .content-column *{word-break:normal!important}
+ html.kfm .content-column{z-index:2147483000!important}
+ html.kfm.kfm-cols-open .content-column{position:fixed!important;left:-9999px!important;top:0!important;width:1px!important;height:1px!important;overflow:hidden!important;opacity:0!important;pointer-events:none!important}
+ #kfm-cols{position:fixed;inset:0;z-index:2147483400;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;font:15px/1.4 -apple-system,system-ui,"Hiragino Sans",sans-serif}
+ #kfm-cols .kfm-cols-sh{background:#fff;width:100%;height:92vh;max-height:92vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom);box-sizing:border-box}
+ #kfm-cols .kfm-cols-top{display:flex;align-items:center;gap:8px;padding:12px 12px 8px;border-bottom:1px solid #eee;flex:0 0 auto}
+ #kfm-cols .kfm-cols-top b{flex:1 1 auto;font-size:16px}
+ #kfm-cols .kfm-cols-top button{border:1px solid #ccc;background:#f5f6f8;border-radius:16px;padding:8px 12px;font-size:14px;min-height:40px}
+ #kfm-cols .kfm-cols-top .kfm-cols-done{background:#1a73e8;border-color:#1a73e8;color:#fff;font-weight:700}
+ #kfm-cols .kfm-cols-tools{display:flex;flex-wrap:wrap;gap:8px;padding:8px 12px;border-bottom:1px solid #f0f0f0;flex:0 0 auto;align-items:center}
+ #kfm-cols .kfm-cols-tools input[type=search]{flex:1 1 140px;min-width:0;font-size:16px!important;padding:10px 12px;border:1px solid #ccc;border-radius:10px}
+ #kfm-cols .kfm-cols-tools label{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#555;white-space:nowrap}
+ #kfm-cols .kfm-cols-tools button{border:1px solid #ddd;background:#fff;border-radius:14px;padding:8px 10px;font-size:13px;min-height:40px;color:#333}
+ #kfm-cols .kfm-cols-body{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 0 12px}
+ #kfm-cols .kfm-cols-g{border-bottom:1px solid #eee}
+ #kfm-cols .kfm-cols-gh{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;border:0;background:#fafbfc;text-align:left;font-size:15px;font-weight:700;color:#222;min-height:48px;box-sizing:border-box}
+ #kfm-cols .kfm-cols-gh .kfm-cols-caret{flex:0 0 18px;color:#888;font-size:12px}
+ #kfm-cols .kfm-cols-gh .kfm-cols-gname{flex:1 1 auto;min-width:0}
+ #kfm-cols .kfm-cols-gh .kfm-cols-gcount{flex:0 0 auto;font-size:12px;font-weight:600;color:#888}
+ #kfm-cols .kfm-cols-gall{flex:0 0 auto;border:1px solid #ccc;background:#fff;border-radius:12px;padding:6px 8px;font-size:12px;color:#1a73e8;min-height:36px}
+ #kfm-cols .kfm-cols-g.kfm-cols-collapsed .kfm-cols-gi{display:none}
+ #kfm-cols .kfm-cols-gi{display:flex;align-items:center;gap:12px;padding:12px 14px 12px 18px;border-top:1px solid #f3f3f3;min-height:48px;box-sizing:border-box;background:#fff}
+ #kfm-cols .kfm-cols-gi.kfm-cols-on{background:#eef5ff}
+ #kfm-cols .kfm-cols-gi.kfm-cols-off{opacity:.55}
+ #kfm-cols .kfm-cols-sw{flex:0 0 48px;width:48px;height:30px;border-radius:15px;border:0;background:#c8ccd2;position:relative;padding:0}
+ #kfm-cols .kfm-cols-sw::after{content:'';position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s}
+ #kfm-cols .kfm-cols-gi.kfm-cols-on .kfm-cols-sw{background:#1a73e8}
+ #kfm-cols .kfm-cols-gi.kfm-cols-on .kfm-cols-sw::after{left:21px}
+ #kfm-cols .kfm-cols-lab{flex:1 1 auto;min-width:0;font-size:15px;color:#222}
+ #kfm-cols .kfm-cols-empty{padding:24px 16px;text-align:center;color:#888}
+ /* v0.1.8: 複数選択オートコンプリート */
+ ul.ui-autocomplete.kfm-ac-multi{z-index:2147483500!important;max-height:min(60vh,420px)!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch;padding-bottom:56px!important;box-sizing:border-box!important}
+ ul.ui-autocomplete.kfm-ac-multi .ui-menu-item{min-height:44px;display:flex!important;align-items:center;font-size:15px!important}
+ ul.ui-autocomplete.kfm-ac-multi .ui-menu-item>div{width:100%;padding:10px 12px!important;box-sizing:border-box}
+ ul.ui-autocomplete.kfm-ac-multi .ui-menu-item.kfm-ac-on>div{background:#e8f0fe;font-weight:600}
+ ul.ui-autocomplete.kfm-ac-multi .ui-menu-item.kfm-ac-on>div::before{content:'✓ ';color:#1a73e8}
+ #kfm-ac-done{position:fixed;left:0;right:0;bottom:0;z-index:2147483600;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(255,255,255,.96);border-top:1px solid #e5e5e5;box-shadow:0 -4px 16px rgba(0,0,0,.08);display:none}
+ #kfm-ac-done button{width:100%;min-height:48px;border:0;border-radius:12px;background:#1a73e8;color:#fff;font-size:17px;font-weight:700}
  #kfm-ver{position:fixed;left:4px;bottom:calc(2px + env(safe-area-inset-bottom));z-index:2147483646;color:#aaa;font:400 10px -apple-system,sans-serif;pointer-events:none;background:transparent}
  html.kfm-finder #kfm-ver{display:none}
  #kfm-badge{position:fixed;left:6px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:100000;background:rgba(26,127,55,.9);color:#fff;font:600 10px -apple-system,sans-serif;
@@ -1280,7 +1321,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   // ---- 並び替え（Keepa の本物のヘッダーをクリック＝全ページ対象のサーバー側ソート）----
   const SORT_CHIPS = [['monthlySold', '月間販売数'], ['SALES_current', 'ランキング'], ['BUY_BOX_SHIPPING_current', 'Buy Box'], ['NEW_current', '新品価格']];
   let sortDir = 'descending', sorting = false;
-  function hdr(id) { const w = document.querySelector('.ag-root-wrapper'); return w && w.querySelector(`.ag-header-cell[col-id="${CSS.escape(id)}"]`); }
+  function hdr(id) { const w = document.querySelector('.ag-root-wrapper'); return w && w.querySelector(`.ag-header-cell[col-id="${cssEsc(id)}"]`); }
   function curSort() {
     const w = document.querySelector('.ag-root-wrapper'); if (!w) return null;
     const h = w.querySelector('.ag-header-cell[aria-sort="ascending"], .ag-header-cell[aria-sort="descending"]');
@@ -1595,14 +1636,14 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
       R.lastCur = st.cur; R.clickAt = Date.now(); [80, 200, 400].forEach(t => setTimeout(schedule, t)); return;
     }
     const list = document.getElementById('kfm-list'); if (!list) return;
-    const card = R.rec.asin && list.querySelector(`.kfm-c[data-asin="${CSS.escape(R.rec.asin)}"]`);
+    const card = R.rec.asin && list.querySelector(`.kfm-c[data-asin="${cssEsc(R.rec.asin)}"]`);
     if (card) { posRestore = null; requestAnimationFrame(() => posHide(false)); window.scrollTo(0, Math.max(0, card.getBoundingClientRect().top + window.scrollY - (R.rec.off || 0))); setTimeout(posSaveSoon, 600); return; }
     if (Date.now() - R.t0 > 8000 || (!R.rec.asin && list.querySelector('.kfm-c'))) { posRestore = null; if (R.rec.y) window.scrollTo(0, R.rec.y); requestAnimationFrame(() => posHide(false)); return; }
     if (Date.now() - R.t0 > 3000 && cache.size < 3) harvest(document.querySelector('.ag-root-wrapper'));
     setTimeout(schedule, 250);
   }
   function leaveFinder() {
-    ['kfm-sort', 'kfm-sheet'].forEach(i => { const e = document.getElementById(i); if (e && !(i === 'kfm-sheet' && onManage())) e.remove(); });
+    ['kfm-sort', 'kfm-sheet', 'kfm-cols', 'kfm-ac-done'].forEach(i => { const e = document.getElementById(i); if (e && !(i === 'kfm-sheet' && onManage())) e.remove(); }); document.documentElement.classList.remove('kfm-cols-open');
     const pg = document.getElementById('kfm-pager'); if (pg) pg.remove();
     document.querySelectorAll('.kfm-gridhost').forEach(w => w.classList.remove('kfm-gridhost'));
     const l = document.getElementById('kfm-list'); if (l) l.remove();
@@ -1726,7 +1767,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   function groupChecks() {
     const rows = new Map();
     document.querySelectorAll('input[type=checkbox]').forEach(cb => {
-      if (cb.closest('.kfm-vlist,.ag-root-wrapper,#kfm-badge,.kfm-bottombar,#kfm-sheet,#kfm-tm,#kfm-tm-sheet')) return;
+      if (cb.closest('.kfm-vlist,.ag-root-wrapper,#kfm-badge,.kfm-bottombar,#kfm-sheet,#kfm-tm,#kfm-tm-sheet,.content-column,.column-group,#kfm-cols,.ui-autocomplete,.filter-text--autocomplete')) return;
       if (cb.closest('.filter-row') && cb.closest('.filter-row').querySelector('.ui-autocomplete-input,.filter-text')) return;
       const pair = pairOf(cb); const row = rowOf(pair);
       if (row.querySelector('.ui-autocomplete-input,.filter-text,.ui-front')) return;
@@ -1782,7 +1823,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const all = document.body.getElementsByTagName('*');
     for (let i = 0; i < all.length && n < 300; i++) {
       const el = all[i];
-      if (SKIP.test(el.tagName) || el.id === 'kfm-badge' || el.closest('#kfm-list,#kfm-pager,#kfm-badge,.kfm-bottombar,.filter--checkbox,.panelCheck,.kfm-checkpair,.ag-row,.ui-autocomplete,.ui-menu,.ui-front')) continue;
+      if (SKIP.test(el.tagName) || el.id === 'kfm-badge' || el.closest('#kfm-list,#kfm-pager,#kfm-badge,#kfm-cols,.kfm-bottombar,.filter--checkbox,.panelCheck,.kfm-checkpair,.ag-row,.ui-autocomplete,.ui-menu,.ui-front,.content-column,.column-group')) continue;
       const r = el.getBoundingClientRect();
       if (r.right <= W || r.width < 120) continue;
       const p = el.parentElement;
@@ -1797,6 +1838,265 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
       n++;
     }
   }
+
+  // ---------- v0.1.8: 列を設定（モバイル用ボトムシート）----------
+  function colPanelVisible() {
+    const cc = document.querySelector('.content-column');
+    if (!cc) return null;
+    const st = getComputedStyle(cc);
+    if (st.display === 'none' || st.visibility === 'hidden') return null;
+    return cc;
+  }
+  function closeNativeColPanel() {
+    const t = document.querySelector('.tool__column .trigger, .tool__column');
+    const cc = colPanelVisible();
+    if (cc && t) { try { t.click(); } catch (e) {} }
+  }
+  function readNativeColGroups(cc) {
+    return [...cc.querySelectorAll('.column-group')].map(g => {
+      const head = g.querySelector('p.toggle-children, p.font-medium') || g.querySelector('p');
+      const headCb = head && head.querySelector('input[type=checkbox]');
+      const name = norm((head && head.querySelector('label') ? head.querySelector('label').textContent : (head ? head.textContent : ''))).replace(/:$/, '').trim();
+      const cols = [...g.querySelectorAll('input[type=checkbox][data-col-id]')].map(cb => {
+        const lab = cc.querySelector('label[for="' + cssEsc(cb.id) + '"]') || cb.parentElement;
+        const title = (lab && (lab.getAttribute('title') || lab.textContent)) || cb.getAttribute('data-col-id');
+        return { cb, id: cb.getAttribute('data-col-id'), label: norm(title), on: !!cb.checked };
+      });
+      const onN = cols.filter(c => c.on).length;
+      return { g, head, headCb, name: name || 'その他', cols, onN };
+    }).filter(x => x.cols.length);
+  }
+  function openColSheet(cc) {
+    if (document.getElementById('kfm-cols')) return;
+    document.documentElement.classList.add('kfm-cols-open');
+    const groups = readNativeColGroups(cc);
+    const sh = el('div'); sh.id = 'kfm-cols';
+    const box = el('div', 'kfm-cols-sh'); sh.appendChild(box);
+    const top = el('div', 'kfm-cols-top');
+    top.appendChild(el('b', null, '表示する列'));
+    const reset = el('button', null, 'リセット'); reset.type = 'button';
+    const done = el('button', 'kfm-cols-done', '完了'); done.type = 'button';
+    top.appendChild(reset); top.appendChild(done); box.appendChild(top);
+    const tools = el('div', 'kfm-cols-tools');
+    const q = el('input'); q.type = 'search'; q.placeholder = '列名で探す'; q.setAttribute('enterkeyhint', 'search');
+    const only = el('label'); const onlyCb = el('input'); onlyCb.type = 'checkbox';
+    only.appendChild(onlyCb); only.appendChild(document.createTextNode(' 表示中のみ'));
+    const showAll = el('button', null, 'すべて表示'); showAll.type = 'button';
+    const hideAll = el('button', null, 'すべて隠す'); hideAll.type = 'button';
+    [q, only, showAll, hideAll].forEach(x => tools.appendChild(x)); box.appendChild(tools);
+    const body = el('div', 'kfm-cols-body'); box.appendChild(body);
+
+    const state = { open: new Set(groups.map((g, i) => g.onN ? i : -1).filter(i => i >= 0)) };
+    if (!state.open.size && groups.length) state.open.add(0);
+
+    function flipNative(cb) {
+      if (!cb) return;
+      const lab = cc.querySelector('label[for="' + cssEsc(cb.id) + '"]');
+      try { (lab || cb).click(); } catch (e) { try { cb.click(); } catch (e2) {} }
+    }
+    function paint() {
+      const live = readNativeColGroups(cc);
+      // keep name→index open state by name
+      const byName = new Map(live.map((g, i) => [g.name, i]));
+      groups.length = 0; live.forEach(g => groups.push(g));
+      const qq = norm(q.value).toLowerCase();
+      const onlyOn = onlyCb.checked;
+      body.textContent = '';
+      let shown = 0;
+      groups.forEach((g, gi) => {
+        const cols = g.cols.filter(c => {
+          c.on = !!c.cb.checked;
+          if (onlyOn && !c.on) return false;
+          if (qq && !(c.label.toLowerCase().includes(qq) || g.name.toLowerCase().includes(qq))) return false;
+          return true;
+        });
+        // refresh counts from live
+        g.onN = g.cols.filter(c => c.cb.checked).length;
+        if (!cols.length && qq) return;
+        if (onlyOn && !g.cols.some(c => c.cb.checked) && !cols.length) return;
+        shown++;
+        const wrap = el('div', 'kfm-cols-g' + (state.open.has(gi) ? '' : ' kfm-cols-collapsed'));
+        const gh = el('button', 'kfm-cols-gh'); gh.type = 'button';
+        const caret = el('span', 'kfm-cols-caret', state.open.has(gi) ? '▾' : '▸');
+        gh.appendChild(caret);
+        gh.appendChild(el('span', 'kfm-cols-gname', g.name));
+        gh.appendChild(el('span', 'kfm-cols-gcount', g.onN + '/' + g.cols.length));
+        const gall = el('button', 'kfm-cols-gall', g.onN === g.cols.length ? '全オフ' : '全オン'); gall.type = 'button';
+        gall.addEventListener('click', e => {
+          e.preventDefault(); e.stopPropagation();
+          const wantOn = g.onN !== g.cols.length;
+          g.cols.forEach(c => { if (!!c.cb.checked !== wantOn) flipNative(c.cb); });
+          paint();
+        });
+        gh.appendChild(gall);
+        gh.addEventListener('click', e => {
+          if (e.target === gall || gall.contains(e.target)) return;
+          if (state.open.has(gi)) state.open.delete(gi); else state.open.add(gi);
+          paint();
+        });
+        wrap.appendChild(gh);
+        cols.forEach(c => {
+          const on = !!c.cb.checked;
+          const row = el('div', 'kfm-cols-gi ' + (on ? 'kfm-cols-on' : 'kfm-cols-off'));
+          const sw = el('button', 'kfm-cols-sw'); sw.type = 'button'; sw.setAttribute('aria-label', c.label); sw.setAttribute('aria-pressed', on ? 'true' : 'false');
+          row.appendChild(sw);
+          row.appendChild(el('span', 'kfm-cols-lab', c.label));
+          const tog = ev => { ev.preventDefault(); ev.stopPropagation(); flipNative(c.cb); paint(); };
+          row.addEventListener('click', tog);
+          wrap.appendChild(row);
+        });
+        body.appendChild(wrap);
+      });
+      if (!shown) body.appendChild(el('div', 'kfm-cols-empty', '該当する列がありません'));
+    }
+    q.addEventListener('input', paint);
+    onlyCb.addEventListener('change', paint);
+    showAll.addEventListener('click', e => { e.preventDefault(); const b = cc.querySelector('.show-all'); if (b) b.click(); setTimeout(paint, 50); });
+    hideAll.addEventListener('click', e => { e.preventDefault(); const b = cc.querySelector('.hide-all'); if (b) b.click(); setTimeout(paint, 50); });
+    reset.addEventListener('click', e => { e.preventDefault(); const b = cc.querySelector('.reset-all'); if (b) b.click(); setTimeout(paint, 80); });
+    const close = () => {
+      sh.remove(); document.documentElement.classList.remove('kfm-cols-open');
+      closeNativeColPanel();
+    };
+    done.addEventListener('click', e => { e.preventDefault(); close(); });
+    sh.addEventListener('click', e => { if (e.target === sh) close(); });
+    document.body.appendChild(sh);
+    paint();
+  }
+  function colSheetTick() {
+    if (!mq.matches) { const s = document.getElementById('kfm-cols'); if (s) s.remove(); document.documentElement.classList.remove('kfm-cols-open'); return; }
+    const cc = colPanelVisible();
+    if (cc) openColSheet(cc);
+    else {
+      const s = document.getElementById('kfm-cols');
+      if (s) { s.remove(); document.documentElement.classList.remove('kfm-cols-open'); }
+    }
+  }
+
+  // ---------- v0.1.8: 複数選択オートコンプリートを開いたまま ----------
+  function acWrap(inp) {
+    return inp && (inp.closest('.filter-text--autocomplete') || (inp.closest('.filter-text') && inp.closest('.filter-text').querySelector('.filter-values')));
+  }
+  function acSelectedNames(wrap) {
+    const vals = wrap && wrap.querySelector('.filter-values');
+    if (!vals) return new Set();
+    const set = new Set();
+    vals.querySelectorAll(':scope > span').forEach(chip => {
+      if (chip.classList.contains('clear-all')) return;
+      const idEl = chip.querySelector('i[data-id]');
+      if (!idEl || String(idEl.getAttribute('data-id')) === '-1') return;
+      const lab = chip.querySelector('span');
+      const name = norm(lab ? lab.textContent : chip.textContent.replace(/×/g, ''));
+      if (name && name !== 'すべてクリア') set.add(name.toLowerCase());
+    });
+    return set;
+  }
+  function acItemName(li) {
+    const t = norm(li.textContent).replace(/^\s*✓\s*/, '');
+    if (/^すべて選択/.test(t)) return { all: true, name: t };
+    const m = t.match(/^(.*?)(?:\s*\(\d+\))?\s*$/);
+    return { all: false, name: norm(m ? m[1] : t) };
+  }
+  function acMarkMenu(menu, wrap) {
+    if (!menu) return;
+    menu.classList.add('kfm-ac-multi');
+    const sel = acSelectedNames(wrap);
+    menu.querySelectorAll('li.ui-menu-item').forEach(li => {
+      if (li.classList.contains('ui-item-select-all')) return;
+      const info = acItemName(li);
+      li.classList.toggle('kfm-ac-on', sel.has(info.name.toLowerCase()));
+    });
+  }
+  function acEnsureDone(inp) {
+    let bar = document.getElementById('kfm-ac-done');
+    if (!bar) {
+      bar = el('div'); bar.id = 'kfm-ac-done';
+      const b = el('button', null, '完了'); b.type = 'button';
+      b.addEventListener('click', e => {
+        e.preventDefault(); e.stopPropagation();
+        acClose(inp || document.querySelector('.ui-autocomplete-input[aria-expanded="true"]'));
+      });
+      bar.appendChild(b); document.body.appendChild(bar);
+    }
+    bar.style.display = 'block';
+    bar._inp = inp;
+  }
+  function acHideDone() {
+    const bar = document.getElementById('kfm-ac-done');
+    if (bar) bar.style.display = 'none';
+  }
+  function acClose(inp) {
+    acHideDone();
+    document.querySelectorAll('ul.ui-autocomplete.kfm-ac-multi').forEach(u => {
+      u.style.display = 'none'; u.classList.remove('kfm-ac-multi');
+    });
+    if (inp) {
+      try { inp.blur(); } catch (e) {}
+      try { inp.setAttribute('aria-expanded', 'false'); } catch (e) {}
+    }
+  }
+  function acReopen(inp) {
+    if (!inp || !document.body.contains(inp)) return;
+    try { inp.focus(); } catch (e) {}
+    try {
+      inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', code: 'ArrowDown', keyCode: 40, which: 40, bubbles: true, cancelable: true }));
+    } catch (e) {}
+  }
+  function acVisibleMenu() {
+    return [...document.querySelectorAll('ul.ui-autocomplete')].find(u => {
+      const st = getComputedStyle(u);
+      return st.display !== 'none' && st.visibility !== 'hidden' && u.getClientRects().length && u.children.length;
+    });
+  }
+  let acKeep = null;
+  document.addEventListener('mousedown', e => {
+    if (!mq.matches) return;
+    const li = e.target.closest && e.target.closest('ul.ui-autocomplete li.ui-menu-item');
+    if (!li) {
+      // outside tap closes
+      const bar = document.getElementById('kfm-ac-done');
+      if (bar && bar.style.display === 'block') {
+        if (e.target.closest && (e.target.closest('#kfm-ac-done') || e.target.closest('ul.ui-autocomplete') || e.target.closest('.filter-text--autocomplete') || e.target.classList.contains('ui-autocomplete-input'))) return;
+        acClose(bar._inp);
+      }
+      return;
+    }
+    const inp = (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('ui-autocomplete-input'))
+      ? document.activeElement
+      : (document.querySelector('.ui-autocomplete-input[aria-expanded="true"]') || null);
+    const wrap = acWrap(inp);
+    if (!wrap) return;
+    acKeep = inp;
+  }, true);
+  document.addEventListener('click', e => {
+    if (!mq.matches) return;
+    const li = e.target.closest && e.target.closest('ul.ui-autocomplete li.ui-menu-item');
+    if (!li) return;
+    const inp = acKeep || (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('ui-autocomplete-input') ? document.activeElement : null);
+    const wrap = acWrap(inp);
+    if (!wrap || !inp) return;
+    // keep open for continuous multi-select
+    setTimeout(() => {
+      acReopen(inp);
+      setTimeout(() => {
+        const menu = acVisibleMenu();
+        if (menu) { acMarkMenu(menu, wrap); acEnsureDone(inp); }
+      }, 60);
+    }, 30);
+  }, true);
+  function acTick() {
+    if (!mq.matches) { acHideDone(); return; }
+    const menu = acVisibleMenu();
+    if (!menu) { acHideDone(); return; }
+    const inp = (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('ui-autocomplete-input'))
+      ? document.activeElement
+      : document.querySelector('.ui-autocomplete-input[aria-expanded="true"]');
+    const wrap = acWrap(inp);
+    if (!wrap) { menu.classList.remove('kfm-ac-multi'); acHideDone(); return; }
+    acMarkMenu(menu, wrap);
+    acEnsureDone(inp);
+  }
+
   // ---------- loop ----------
   let timer = 0, busy = false;
   const isTyping = () => {
@@ -1844,7 +2144,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
         const e = all[i];
         const r = e.getBoundingClientRect();
         if ((r.width === 0 && r.height === 0) || (r.right <= W + 1 && r.left >= -1)) continue;
-        if (e.closest('.kfm-gridhost,#kfm-ovf,.ui-autocomplete,.ui-menu,#kfm-pager,.kfm-swacts,.kfm-inner,.kfm-swopen')) continue;   // 隠しグリッドは1pxの箱のまま触らない
+        if (e.closest('.kfm-gridhost,#kfm-ovf,#kfm-cols,.ui-autocomplete,.ui-menu,#kfm-pager,.kfm-swacts,.kfm-inner,.kfm-swopen,.content-column,.column-group')) continue;   // 隠しグリッドは1pxの箱のまま触らない
         if (r.right > W + 1 || r.left < -1) out.push({ e, w: Math.round(r.width), l: Math.round(r.left), r: Math.round(r.right) });
       }
       out.sort((a, b) => b.w - a.w); return out;
@@ -2378,7 +2678,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     if (!on || !document.body) return;
     setViewport(); badge();
     busy = true;
-    try { cardify(); if (onFinder()) { groupChecks(); fixRanges(); numericKeyboards(); bottomBar(); filterEdit(); activeFilterPopup(); const l = document.getElementById('kfm-list'); if (l) sortBar(l); fixOverflow(); }  }
+    try { cardify(); if (onFinder()) { groupChecks(); fixRanges(); numericKeyboards(); bottomBar(); filterEdit(); activeFilterPopup(); const l = document.getElementById('kfm-list'); if (l) sortBar(l); fixOverflow(); } colSheetTick(); acTick();  }
     finally { setTimeout(() => { busy = false; }, 0); }
   }
   const schedule = () => { if (!busy && !timer) timer = setTimeout(run, isTyping() ? 1000 : 250); };
@@ -2480,6 +2780,7 @@ ${R('sellerlookup')} .seller-lookup__pill{min-height:40px;font-size:14px!importa
 ${R('sellerlookup')} #sellerLookupResults{max-width:100%!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch}
 ${R('categorytree')} #grid-wrapper-category{width:auto!important}
 ${R('categorytree')} #grid-category .ag-root-wrapper{position:relative!important;left:0!important;width:100%!important}
+${T} .content-column{max-width:calc(100vw - 16px)!important;box-sizing:border-box;left:8px!important;right:8px!important;width:auto!important}
 ${R('categorytree')} #grid-tools-categorytree .content-column{max-width:calc(100vw - 16px)!important;box-sizing:border-box}
 }`;
   (function initTabs() {
