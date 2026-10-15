@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.2
+// @version      0.1.3
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -72,7 +72,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   new MutationObserver(() => { if (isMobile()) setViewport(); })
     .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['content'] });
-  const VERSION = 'v0.1.2';
+  const VERSION = 'v0.1.3';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -400,6 +400,31 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-sheet .kfm-set-ver{font-size:10px;color:#bbb;margin-top:8px;text-align:right}
  #kfm-pager .kfm-pg-set{width:32px;height:32px;border-radius:50%;border:0;background:transparent;color:#888;padding:0;margin-left:4px;display:inline-flex;align-items:center;justify-content:center}
  #kfm-pager button svg{display:block}
+/* v0.1.3: 利き手に合わせてページ送りを片側にまとめる */
+ #kfm-pager{gap:6px;padding-left:10px;padding-right:10px}
+ #kfm-pager .kfm-pg-info{flex:0 1 auto;overflow:hidden}
+ #kfm-pager .kfm-pg-info>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ #kfm-pager .kfm-pg-set,#kfm-pager .kfm-pg-trk,#kfm-pager .kfm-pg-list{flex:0 0 auto;margin-left:0;margin-right:0}
+ #kfm-pager .kfm-pg-ctl{gap:4px;margin-left:auto}
+ #kfm-pager .kfm-pg-ctl button{width:44px;height:44px;line-height:44px;font-size:20px;flex:0 0 auto}
+ #kfm-pager .kfm-pg-num{min-width:0;padding:0 2px;font-size:12px;color:#555}
+ #kfm-pager .kfm-pg-num:empty{display:none}
+ #kfm-pager.kfm-hand-left{flex-direction:row-reverse}
+ #kfm-pager{gap:4px;padding-left:8px;padding-right:8px}
+ #kfm-pager .kfm-pg-ver,#kfm-pager .kfm-pg-num{display:none!important}
+ #kfm-pager .kfm-pg-info{flex:1 0 auto;min-width:max-content;overflow:visible}
+ #kfm-pager .kfm-pg-info>span{overflow:visible;text-overflow:clip}
+ #kfm-pager .kfm-pg-sum{display:flex;flex-direction:column;font-size:12px;line-height:1.25;color:#555;font-variant-numeric:tabular-nums}
+ #kfm-pager .kfm-pg-set,#kfm-pager .kfm-pg-trk,#kfm-pager .kfm-pg-list{width:30px;height:30px}
+ #kfm-pager .kfm-pg-ctl{gap:2px}
+ html.kfm-restoring #kfm-list>*{visibility:hidden}
+ html.kfm-restoring #kfm-list{min-height:60vh;position:relative}
+ html.kfm-restoring #kfm-list::before{content:'前の位置に戻しています…';position:absolute;left:0;right:0;top:40px;text-align:center;color:#888;font-size:14px;visibility:visible}
+ html.kfm-restoring #kfm-pager .kfm-pg-sum{visibility:hidden}
+ #kfm-pager.kfm-hand-left .kfm-pg-ctl{margin-left:0;margin-right:auto}
+ #kfm-pager.kfm-hand-left .kfm-pg-info{text-align:right;align-items:flex-end}
+ #kfm-sheet .kfm-set-hand{display:flex;align-items:center;gap:16px;font-size:15px;padding:4px 0}
+ #kfm-sheet .kfm-set-hand>b{font-weight:600;color:#333}
  #kfm-list .kfm-all{display:none;margin-top:10px;padding-top:8px;border-top:1px dashed #ddd}
  #kfm-list .kfm-c.kfm-x .kfm-all{display:block}
  #kfm-list .kfm-gs{margin:0 0 8px}
@@ -693,7 +718,8 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
       const d = readRow(r, pinned, map);
       if (!d.asin && !d.title) return;
       const old = cache.get(d.idx);
-      if (!old || old.asin !== d.asin || old.fields.length !== d.fields.length) { cache.set(d.idx, d); added++; }
+      if (old && old.asin === d.asin) { if (!d.title && old.title) d.title = old.title; if (!d.img && old.img) d.img = old.img; }   // v0.1.3: 後から埋まった名前・画像を取りこぼさない
+      if (!old || old.asin !== d.asin || old.fields.length !== d.fields.length || old.title !== d.title || old.img !== d.img) { cache.set(d.idx, d); added++; }
     });
     return added;
   }
@@ -742,7 +768,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     return { P, F, R, N: P - F - R };
   }
   function card(d) {
-    const c = el('div', 'kfm-c'); c.dataset.idx = d.idx;
+    const c = el('div', 'kfm-c'); c.dataset.idx = d.idx; if (d.asin) c.dataset.asin = d.asin;
     const h = el('div', 'kfm-h');
     if (d.img) { const im = el('img'); im.loading = 'lazy'; im.alt = '商品画像'; im.src = d.img; im.onerror = () => im.remove(); h.appendChild(im); }
     const meta = el('div', 'kfm-meta');
@@ -971,11 +997,13 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     clearTimeout(t._h); t._h = setTimeout(() => { t.style.opacity = '0'; }, 2000);
   }
   // 設定値（メモリにも保持）
-  const cfg = { mode: 'webhook', gasUrl: '', gasKey: '', listGraph: true };
+  const cfg = { mode: 'webhook', gasUrl: '', gasKey: '', listGraph: true, hand: 'right' };
+  const applyHand = () => { const pg = document.getElementById('kfm-pager'); if (pg) pg.classList.toggle('kfm-hand-left', cfg.hand === 'left'); };
   (async () => {
     cfg.mode = await gv('kfmMode', 'webhook') || 'webhook';
     cfg.gasUrl = await gv('kfmGasUrl', '') || ''; cfg.gasKey = await gv('kfmGasKey', '') || '';
     cfg.listGraph = (await gv('kfmListGraph', 'on')) !== 'off';
+    cfg.hand = (await gv('kfmHand', 'right')) === 'left' ? 'left' : 'right'; applyHand();
     tm.dry = (await gv('kfmPractice', 'off')) === 'on'; try { tmBar(); } catch (e) {}
     try { const m = JSON.parse(await gv('kfmImgMap', '{}') || '{}'); Object.entries(m).forEach(([k, v]) => imgMap.set(k, v)); } catch (e) {}
     if (cfg.mode === 'gas') refreshList();
@@ -1002,8 +1030,12 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     modeRow.addEventListener('change', sync); sync();
     const gr = el('label', 'kfm-set-chk'); const grc = el('input'); grc.type = 'checkbox'; grc.checked = cfg.listGraph;
     gr.appendChild(grc); gr.appendChild(document.createTextNode(' リストにミニグラフを表示')); gBox.appendChild(gr);
+    const handRow = el('div', 'kfm-set-hand'); handRow.appendChild(el('b', null, '利き手'));
+    const mkH = (v, txt) => { const lb = el('label'); const r = el('input'); r.type = 'radio'; r.name = 'kfmHand'; r.value = v; r.checked = cfg.hand === v; lb.appendChild(r); lb.appendChild(document.createTextNode(' ' + txt)); handRow.appendChild(lb); return r; };
+    mkH('right', '右手'); const hLeft = mkH('left', '左手');
     const save = el('button', 'kfm-set-save', '保存'); save.type = 'button';
     save.addEventListener('click', async () => {
+      cfg.hand = hLeft.checked ? 'left' : 'right'; applyHand(); await sv('kfmHand', cfg.hand);
       cfg.listGraph = grc.checked; await sv('kfmListGraph', cfg.listGraph ? 'on' : 'off');
       tm.dry = prc.checked; await sv('kfmPractice', tm.dry ? 'on' : 'off'); try { tmBar(); } catch (e) {}
       cfg.mode = rGas.checked ? 'gas' : 'webhook'; cfg.gasUrl = g1.value.trim(); cfg.gasKey = g2.value.trim();
@@ -1015,7 +1047,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const pr = el('label', 'kfm-set-chk kfm-set-prac'); const prc = el('input'); prc.type = 'checkbox'; prc.checked = tm.dry;
     pr.appendChild(prc); pr.appendChild(document.createTextNode(' 練習モード（削除せずに動きだけ確かめる）'));
     const prh = el('div', 'kfm-set-note', 'トラッキング整理で、実際には削除せずに動きを確かめます。慣れたらオフにしてください。');
-    [modeRow, gBox, wBox, pr, prh, save].forEach(x => form.appendChild(x));
+    [modeRow, gBox, wBox, handRow, pr, prh, save].forEach(x => form.appendChild(x));
     form.appendChild(el('div', 'kfm-set-note', 'URLとキーはこのiPhoneの中だけに保存されます。スクリプトのファイルには入りません。'));
     form.appendChild(el('div', 'kfm-set-ver', 'バージョン ' + VERSION));
     box.appendChild(form);
@@ -1178,7 +1210,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     closeSwipe();
     if (ok) { rememberSent(d.asin); markSent(c); toast('送りました', true); } else toast('送れませんでした。設定を確かめてください', false);
   }
-  function listStamp(keys) { keys = keys || [...cache.keys()].sort((a, b) => a - b); return keys.map(k => k + ':' + cache.get(k).asin).join(',') + '|L' + [...listCache.keys()].sort().join(',') + (listLoaded ? 'y' : 'n') + cfg.mode; }
+  function listStamp(keys) { keys = keys || [...cache.keys()].sort((a, b) => a - b); return keys.map(k => { const d = cache.get(k); return k + ':' + d.asin + (d.title ? 't' : '') + (d.img ? 'i' : ''); }).join(',') + '|L' + [...listCache.keys()].sort().join(',') + (listLoaded ? 'y' : 'n') + cfg.mode; }
   function renderList(grid, total) {
     const host = grid.closest('.ag-root-wrapper') || grid;
     let list = document.getElementById('kfm-list');
@@ -1424,7 +1456,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
       pg.innerHTML = '<div class="kfm-pg-info"><span class="kfm-pg-sum"></span><span class="kfm-pg-ver"></span></div><button type="button" class="kfm-pg-set" aria-label="送信設定" title="送信設定"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button><button type="button" class="kfm-pg-trk" aria-label="トラッキング整理" title="トラッキング整理">'+ICON_BROOM.replace(/20/g,'18')+'</button><button type="button" class="kfm-pg-list" aria-label="あとで見るリスト" title="あとで見るリスト"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg></button>' +
         '<div class="kfm-pg-ctl"><button type="button" aria-label="最初のページ">«</button><button type="button" aria-label="前のページ">‹</button>' +
         '<span class="kfm-pg-num"></span><button type="button" aria-label="次のページ">›</button><button type="button" aria-label="最後のページ">»</button></div>';
-      document.body.appendChild(pg);
+      document.body.appendChild(pg); applyHand();
       pg.querySelector('.kfm-pg-trk').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); location.hash = '#!manage'; });
       pg.querySelector('.kfm-pg-list').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openListSheet(); });
       pg.querySelector('.kfm-pg-set').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openSettings(); });
@@ -1439,7 +1471,9 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     }
     const sumEl = panel.querySelector('.ag-paging-row-summary-panel');
     const nums = (sumEl ? norm(sumEl.textContent) : '').match(/[\d,]+/g) || [];
-    pg.querySelector('.kfm-pg-sum').textContent = nums.length >= 3 ? `${nums[0]}–${nums[1]} / ${nums[2]}件` : (sumEl ? norm(sumEl.textContent) : '');
+    { const se = pg.querySelector('.kfm-pg-sum'); const k = nums.length >= 3 ? nums[0] + '|' + nums[1] + '|' + nums[2] : '';
+      if (k) { if (se.dataset.k !== k) { se.dataset.k = k; se.textContent = ''; se.appendChild(el('span', null, `${nums[0]}–${nums[1]}`)); se.appendChild(el('span', null, `/ ${nums[2]}件`)); } }
+      else { delete se.dataset.k; se.textContent = sumEl ? norm(sumEl.textContent) : ''; } }
     const desc = panel.querySelector('.ag-paging-description');
     const pn = (desc ? norm(desc.textContent) : norm(panel.textContent)).match(/(\d[\d,]*)\s*\/\s*(\d[\d,]*)\s*$/) ||
       (desc ? norm(desc.textContent) : '').match(/(\d[\d,]*)\D+(\d[\d,]*)/);
@@ -1451,6 +1485,69 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     pg.style.bottom = bh + 'px';
     pg.classList.toggle('kfm-pg-solo', !bh);
     const l = document.getElementById('kfm-list'); if (l) padList(l);
+  }
+  // ---- v0.1.3: 製品ファインダーのページと表示位置を覚えて戻す（Keepa本物のページ送りボタンを押すだけ）----
+  const POS_KEY = 'kfmFinderPos';
+  const posGet = () => { try { return JSON.parse(sessionStorage.getItem(POS_KEY) || 'null'); } catch (e) { return null; } };
+  const posSet = v => { try { if (v) sessionStorage.setItem(POS_KEY, JSON.stringify(v)); else sessionStorage.removeItem(POS_KEY); } catch (e) {} };
+  function pgState(panel) {
+    const t = r => { const e = panel.querySelector(`[ref="${r}"], [data-ref="${r}"]`); return e ? +norm(e.textContent).replace(/,/g, '') : 0; };
+    let cur = t('lbCurrent'), pages = t('lbTotal');
+    if (!cur) { const d = panel.querySelector('.ag-paging-description'); const m = norm(d ? d.textContent : '').match(/(\d[\d,]*)\D+(\d[\d,]*)/); if (m) { cur = +m[1].replace(/,/g, ''); pages = +m[2].replace(/,/g, ''); } }
+    const s = panel.querySelector('.ag-paging-row-summary-panel'); const n = (s ? norm(s.textContent) : '').match(/[\d,]+/g) || [];
+    return { cur, pages, total: n.length >= 3 ? n[2] : '' };
+  }
+  let posRestore = null;      // 戻し中の状態
+  let posArmed = true;        // 読み込み直後・ファインダーに戻ったとき
+  let posHideAt = 0;
+  const posHide = on => { if (on && !document.documentElement.classList.contains('kfm-restoring')) posHideAt = Date.now(); document.documentElement.classList.toggle('kfm-restoring', !!on); };   // 戻し中は途中のページを見せない
+  const posPending = () => { const r = posGet(); return !!(r && r.hash === location.hash && (r.page > 1 || r.asin || r.y)); };
+  if (onFinder() && posPending()) posHide(true);
+  setInterval(() => { if ((!posRestore && !posArmed) || !onFinder() || Date.now() - posHideAt > 20000) posHide(false); }, 1000);   // 見張り: 隠したままにしない
+  let posSaveT = 0;
+  function posPanel() { const w = document.querySelector('.ag-root-wrapper'); return w && w.querySelector('.ag-paging-panel'); }
+  function posSave() {
+    if (!onFinder() || posRestore || posArmed) return;
+    const panel = posPanel(), list = document.getElementById('kfm-list'); if (!panel || !list) return;
+    const st = pgState(panel); if (!st.cur) return;
+    let asin = '', off = 0;
+    for (const c of list.querySelectorAll('.kfm-c[data-asin]')) { const r = c.getBoundingClientRect(); if (r.bottom > 60) { asin = c.dataset.asin; off = Math.round(r.top); break; } }
+    posSet({ hash: location.hash, page: st.cur, total: st.total, asin, off, y: Math.round(window.scrollY) });
+  }
+  const posSaveSoon = () => { clearTimeout(posSaveT); posSaveT = setTimeout(posSave, 400); };
+  window.addEventListener('scroll', () => { if (onFinder() && !posRestore) posSaveSoon(); }, { passive: true });
+  window.addEventListener('pagehide', () => { if (onFinder()) posSave(); });
+  window.addEventListener('hashchange', () => { if (onFinder()) { posArmed = true; posRestore = null; posHide(posPending()); } else posHide(false); });
+  const posCancel = () => { if (posRestore) { posRestore = null; posHide(false); posSaveSoon(); } };
+  ['touchstart', 'wheel', 'keydown', 'mousedown'].forEach(ev => window.addEventListener(ev, e => { if (e.isTrusted) posCancel(); }, { passive: true, capture: true }));
+  function posTick() {
+    if (!onFinder()) return;
+    const panel = posPanel(); if (!panel) return;
+    const st = pgState(panel); if (!st.cur) return;
+    if (posArmed) {
+      posArmed = false;
+      const rec = posGet();
+      if (!rec || rec.hash !== location.hash || (rec.total && st.total && rec.total !== st.total)) { posSet(null); posHide(false); posSaveSoon(); return; }   // 別の検索・条件変更
+      if (rec.page <= 1 && !rec.asin && !rec.y) { posHide(false); posSaveSoon(); return; }
+      posHide(true);
+      posRestore = { rec, t0: Date.now(), clickAt: 0, lastCur: 0 };
+    }
+    const R = posRestore; if (!R) { posHide(false); posSaveSoon(); return; }
+    if (Date.now() - R.t0 > 20000) { posRestore = null; posHide(false); return; }   // あきらめる
+    if (st.cur !== R.rec.page) {
+      if (st.cur === R.lastCur && Date.now() - R.clickAt < 1500) return;   // ページ切替の待ち
+      const b = pgButtons(panel), want = st.cur < R.rec.page ? 2 : 1;
+      if (R.rec.page === 1) { if (!isDis(b[0])) b[0].click(); }
+      else if (R.rec.page === st.pages && !isDis(b[3])) b[3].click();
+      else if (!isDis(b[want])) b[want].click(); else { posRestore = null; posHide(false); return; }
+      R.lastCur = st.cur; R.clickAt = Date.now(); [80, 200, 400].forEach(t => setTimeout(schedule, t)); return;
+    }
+    const list = document.getElementById('kfm-list'); if (!list) return;
+    const card = R.rec.asin && list.querySelector(`.kfm-c[data-asin="${CSS.escape(R.rec.asin)}"]`);
+    if (card) { posRestore = null; requestAnimationFrame(() => posHide(false)); window.scrollTo(0, Math.max(0, card.getBoundingClientRect().top + window.scrollY - (R.rec.off || 0))); setTimeout(posSaveSoon, 600); return; }
+    if (Date.now() - R.t0 > 8000 || (!R.rec.asin && list.querySelector('.kfm-c'))) { posRestore = null; if (R.rec.y) window.scrollTo(0, R.rec.y); requestAnimationFrame(() => posHide(false)); return; }
+    if (Date.now() - R.t0 > 3000 && cache.size < 3) harvest(document.querySelector('.ag-root-wrapper'));
+    setTimeout(schedule, 250);
   }
   function leaveFinder() {
     ['kfm-sort', 'kfm-sheet'].forEach(i => { const e = document.getElementById(i); if (e && !(i === 'kfm-sheet' && onManage())) e.remove(); });
@@ -1467,13 +1564,14 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     if (!onFinder()) { leaveFinder(); return; }
     if (!wrap) { const l = document.getElementById('kfm-list'); if (l) l.remove(); return; }
     wrap.classList.add('kfm-gridhost');
+    try { posTick(); } catch (e) {}
     if (harvesting) return;
     const firstAsin = (() => { const c = wrap.querySelector('.ag-center-cols-container .ag-row[row-index="0"] .ag-cell[col-id="asin"]'); return c ? norm(c.textContent) : ''; })();
     const ns = location.hash.split('/')[0] + '|' + pagingText(wrap) + '|' + rowCount(wrap);
     if (ns !== sig || (firstAsin && cache.has(0) && cache.get(0).asin !== firstAsin)) { sig = ns; cache.clear(); rendered = ''; if (cfg.mode === 'gas') refreshList(); }
     const total = rowCount(wrap);
-    collect(wrap); renderList(wrap, total); updatePager(wrap);
-    if (total && cache.size < total && !isTyping()) harvest(wrap).then(() => renderList(wrap, total));
+    collect(wrap); renderList(wrap, total); updatePager(wrap); try { posTick(); } catch (e) {}
+    if (total && cache.size < total && !isTyping() && !posRestore) harvest(wrap).then(() => renderList(wrap, total));
     findByText(['列を設定', 'エクスポート', '高度なフィルター', '保存した検索条件']).forEach(e => {
       const p = e.parentElement; if (p && !p.closest('.ag-root,#kfm-list,.kfm-gridhost')) { p.classList.add('kfm-toolbar'); let a = p.parentElement; for (let i = 0; a && a !== document.body && i < 5; i++, a = a.parentElement) a.classList.add('kfm-toolbar-anc'); }
     });
