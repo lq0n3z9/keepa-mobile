@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.4
+// @version      0.1.5
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -72,7 +72,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   new MutationObserver(() => { if (isMobile()) setViewport(); })
     .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['content'] });
-  const VERSION = 'v0.1.4';
+  const VERSION = 'v0.1.5';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -425,6 +425,25 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-pager.kfm-hand-left .kfm-pg-ctl{margin-right:0}
  #kfm-pager .kfm-pg-info{margin-right:auto}
  #kfm-pager.kfm-hand-left .kfm-pg-info{margin-right:0;margin-left:auto}
+/* v0.1.5: Liquid Glass 風の浮いたカプセル（案A） */
+ #kfm-pager{left:10px!important;right:10px!important;border-radius:999px;border:0!important;padding:6px 4px 6px 12px!important;min-height:60px;isolation:isolate;
+   background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,.28))!important;
+   -webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%);
+   box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 0 0 1px rgba(255,255,255,.55),inset 0 -1px 1px rgba(0,0,0,.05),0 8px 24px rgba(20,30,60,.18),0 1px 3px rgba(0,0,0,.08)!important}
+ #kfm-pager::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;
+   background:radial-gradient(120% 70% at 20% 0%,rgba(255,255,255,.55),transparent 55%),linear-gradient(115deg,transparent 45%,rgba(255,255,255,.25) 55%,transparent 65%)}
+ #kfm-pager.kfm-pg-solo{padding-bottom:6px!important}
+ #kfm-pager.kfm-hand-left{padding:6px 12px 6px 4px!important}
+ #kfm-pager .kfm-pg-sum{color:#333}
+ #kfm-pager .kfm-pg-sum>span:first-child{font-weight:700;color:#111}
+ #kfm-pager .kfm-pg-icons>button{color:#555!important}
+ #kfm-pager .kfm-pg-ctl button{width:44px;height:44px;border-radius:50%;color:#1c1c1e;font-weight:600;
+   background:linear-gradient(180deg,rgba(255,255,255,.78),rgba(255,255,255,.38));box-shadow:inset 0 1px 0 #fff,inset 0 0 0 .5px rgba(255,255,255,.8),0 2px 6px rgba(20,30,60,.15)}
+ #kfm-pager .kfm-pg-ctl button:disabled{opacity:.35;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.6)}
+ @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+   #kfm-pager{background:#f7f8fa!important;box-shadow:0 0 0 1px #e1e4e8,0 6px 18px rgba(20,30,60,.18)!important}
+   #kfm-pager::before{display:none}
+   #kfm-pager .kfm-pg-ctl button{background:#fff;box-shadow:0 0 0 1px #e1e4e8}}
  html.kfm-restoring #kfm-list>*{visibility:hidden}
  html.kfm-restoring #kfm-list{min-height:60vh;position:relative}
  html.kfm-restoring #kfm-list::before{content:'前の位置に戻しています…';position:absolute;left:0;right:0;top:40px;text-align:center;color:#888;font-size:14px;visibility:visible}
@@ -1453,7 +1472,9 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   function bottomBarH() { const bb = document.querySelector('.kfm-bottombar'); if (!bb) return 0; const r = bb.getBoundingClientRect(); return r.height && r.bottom > 0 ? r.height : 0; }
   function padList(list) {
     const pg = document.getElementById('kfm-pager');
-    list.style.paddingBottom = ((pg ? pg.getBoundingClientRect().height : 0) + bottomBarH() + 16) + 'px';
+    const r = pg && pg.getBoundingClientRect();
+    const used = r && r.height ? Math.max(r.height + bottomBarH(), window.innerHeight - r.top) : 0;   // v0.1.5: 浮いたバーの下の余白も含める
+    list.style.paddingBottom = Math.ceil(used + 20) + 'px';
   }
   function updatePager(wrap) {
     const panel = wrap.querySelector('.ag-paging-panel');
@@ -1495,7 +1516,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const kbs = pgButtons(panel);
     [...pg.querySelectorAll('.kfm-pg-ctl button')].forEach((b, i) => { b.disabled = isDis(kbs[i]); });
     const bh = bottomBarH();
-    pg.style.bottom = bh + 'px';
+    pg.style.bottom = `calc(${bh}px + 10px + ${bh ? '0px' : 'env(safe-area-inset-bottom)'})`;   // v0.1.5: 浮かせて下端・Safariのバーから離す
     pg.classList.toggle('kfm-pg-solo', !bh);
     const l = document.getElementById('kfm-list'); if (l) padList(l);
   }
