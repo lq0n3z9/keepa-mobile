@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.0.33
+// @version      0.0.34
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -72,7 +72,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   new MutationObserver(() => { if (isMobile()) setViewport(); })
     .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['content'] });
-  const VERSION = 'v0.0.33';
+  const VERSION = 'v0.0.34';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -348,6 +348,14 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-list .kfm-swa{position:absolute;top:0;right:0;bottom:0;width:96px;border:0;background:#1a73e8;color:#fff;display:flex;flex-direction:column;
    align-items:center;justify-content:center;gap:4px;font-size:12px;font-weight:700;padding:0 6px;z-index:0;text-align:center;line-height:1.2}
  #kfm-list .kfm-sent{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#e6f4ea;color:#1a7f37;font-size:11px;font-weight:700;vertical-align:middle}
+ #kfm-ask{position:fixed;inset:0;z-index:2147483500;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;justify-content:center}
+#kfm-ask .kfm-ask-b{background:#fff;width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:20px 16px calc(16px + env(safe-area-inset-bottom));box-sizing:border-box;font:16px/1.5 -apple-system,sans-serif;color:#222}
+#kfm-ask .kfm-ask-t{font-weight:700;font-size:17px;margin-bottom:6px}
+#kfm-ask .kfm-ask-s{color:#555;font-size:14px;margin-bottom:14px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+#kfm-ask .kfm-ask-r{display:flex;gap:10px}
+#kfm-ask button{flex:1;height:48px;border-radius:12px;border:0;font-size:16px;font-weight:600;background:#eee;color:#222}
+#kfm-ask button.kfm-ask-ok{background:#1a73e8;color:#fff}
+#kfm-ask button.kfm-ask-ok.red{background:#d32f2f}
  #kfm-toast{position:fixed;left:50%;bottom:calc(140px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:2147483600;padding:10px 18px;
    border-radius:20px;color:#fff;font-size:14px;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;box-shadow:0 2px 10px rgba(0,0,0,.2)}
  #kfm-toast.ok{background:#1a7f37} #kfm-toast.ng{background:#d32f2f} #kfm-toast.warn{background:#f0a000;color:#222}
@@ -820,15 +828,10 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     while (c.firstChild) inner.appendChild(c.firstChild);
     const acts = el('div', 'kfm-swacts');
     const inList = cfg.mode === 'gas' && d.asin && listCache.has(d.asin);
-    if (inList) {
-      const del = el('button', 'kfm-swa kfm-swdel'); del.type = 'button'; del.tabIndex = -1;
-      del.innerHTML = '<span class="kfm-swi">' + ICON_TRASH + '</span><span class="kfm-swl"><span>削除</span></span>';
-      del.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); deleteItem(d.asin, d.title); });
-      acts.appendChild(del);
-    }
+    if (inList) addDelBtn(acts, d, c);
     const act = el('button', 'kfm-swa'); act.type = 'button'; act.tabIndex = -1;
     act.innerHTML = '<span class="kfm-swi">' + ICON_SEND + '</span><span class="kfm-swl"><span>Grok Botに</span><span>送る</span></span>';
-    act.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); sendCard(d, c); });
+    onTap(act, () => sendCard(d, c));
     acts.insertBefore(act, acts.firstChild);   // 左: 送る / 右端: 削除
     c.dataset.sw = String(acts.children.length * 96);
     c.appendChild(acts); c.appendChild(inner);
@@ -839,6 +842,39 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     return c;
   }
   // ---- スワイプ送信 ----
+  function addDelBtn(acts, d, c) {
+    if (acts.querySelector('.kfm-swdel')) return;
+    const del = el('button', 'kfm-swa kfm-swdel'); del.type = 'button'; del.tabIndex = -1;
+    del.innerHTML = '<span class="kfm-swi">' + ICON_TRASH + '</span><span class="kfm-swl"><span>削除</span></span>';
+    onTap(del, () => deleteItem(d.asin, d.title, c));
+    acts.appendChild(del); c.dataset.sw = String(acts.children.length * 96);
+  }
+  // v0.0.34: 背面ボタンは touchend / pointerup / click のどれで来ても1回だけ実行（iOSでclickが来ないことがある）
+  function onTap(btn, fn) {
+    let sx = 0, sy = 0, last = 0, tt = false;
+    const fire = e => { if (e) { e.preventDefault(); e.stopPropagation(); } const n = Date.now(); if (n - last < 700) return; last = n; try { fn(); } catch (er) { console.log('[kfm] tap', er); } };
+    btn.addEventListener('touchstart', e => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; tt = true; e.stopPropagation(); }, { passive: true });
+    btn.addEventListener('touchend', e => { if (!tt) return; tt = false; const t = e.changedTouches[0]; if (Math.abs(t.clientX - sx) < 12 && Math.abs(t.clientY - sy) < 12) fire(e); }, { passive: false });
+    btn.addEventListener('pointerup', e => { if (e.pointerType === 'mouse' || e.pointerType === 'pen') fire(e); });
+    btn.addEventListener('click', fire);
+  }
+  // v0.0.34: window.confirm は iPhone の拡張機能から出ないことがあるので、画面内の確認シートを使う
+  function askSheet(msg, sub, okLabel, danger) {
+    return new Promise(res => {
+      const old = document.getElementById('kfm-ask'); if (old) old.remove();
+      const bg = el('div'); bg.id = 'kfm-ask';
+      const box = el('div', 'kfm-ask-b');
+      box.appendChild(el('div', 'kfm-ask-t', msg)); if (sub) box.appendChild(el('div', 'kfm-ask-s', sub));
+      const row = el('div', 'kfm-ask-r');
+      const no = el('button', 'kfm-ask-no', 'やめる'); no.type = 'button';
+      const ok = el('button', 'kfm-ask-ok' + (danger ? ' red' : ''), okLabel || 'OK'); ok.type = 'button';
+      row.appendChild(no); row.appendChild(ok); box.appendChild(row); bg.appendChild(box);
+      const end = v => { bg.remove(); res(v); };
+      onTap(no, () => end(false)); onTap(ok, () => end(true));
+      bg.addEventListener('click', e => { if (e.target === bg) end(false); });
+      document.body.appendChild(bg);
+    });
+  }
   const ICON_TRASH = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>';
   const ICON_SEND = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>';
   const SW_OPEN = 96;
@@ -1019,12 +1055,21 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   }
   const fmtDate = v => { if (!v) return '不明'; const d = new Date(v); if (isNaN(d)) return String(v);
     const j = new Date(d.getTime() + 9 * 3600e3); return j.toISOString().slice(0, 16).replace('T', ' ') + ' JST'; };
-  async function deleteItem(asin, title) {
-    if (!confirm(`リストから削除しますか？\n${title || asin}`)) return false;
-    const r = await gmReq('POST', gasApi(), JSON.stringify({ action: 'delete', asin }));
-    closeSwipe();
-    if (r && r.ok) { listCache.delete(asin); rendered = ''; schedule(); toast('削除しました', true); return true; }
-    toast(r && r.notFound ? 'リストにありません' : '削除できませんでした', false); return false;
+  let deleting = new Set();
+  async function deleteItem(asin, title, c) {
+    if (!asin || deleting.has(asin)) return false;
+    if (!cfg.gasUrl || !cfg.gasKey) { closeSwipe(); toast('リストの設定がまだです。⚙ から設定してください', false); return false; }
+    if (!await askSheet('あとで見るリストから外しますか？', title || asin, '外す', true)) { closeSwipe(); return false; }
+    deleting.add(asin); toast('リストから外しています…', 'warn');
+    let r; try { r = await gmReq('POST', gasApi(), JSON.stringify({ action: 'delete', asin })); } catch (e) { r = { ok: false, error: String(e) }; }
+    deleting.delete(asin); closeSwipe();
+    if ((r && r.ok) || (r && r.notFound)) {
+      listCache.delete(asin);
+      if (c) { const b = c.querySelector('.kfm-sent'); if (b) b.remove(); const dl = c.querySelector('.kfm-swdel'); if (dl) dl.remove(); c.dataset.sw = String(c.querySelectorAll('.kfm-swa').length * 96); }
+      rendered = c && c.isConnected ? listStamp() : ''; if (!rendered) schedule(); toast(r.ok ? 'リストから外しました' : 'もうリストにありませんでした', true); return true;
+    }
+    if (r && r.error) console.log('[kfm] delete error', r.error);
+    toast('リストから外せませんでした。通信を確かめて、もう一度お試しください', false); return false;
   }
   async function openListSheet() {
     const old = document.getElementById('kfm-sheet'); if (old) old.remove();
@@ -1094,6 +1139,11 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
       monthlySold: txt('monthlySold'), rank: txt('SALES_current'), buyBox: txt('BUY_BOX_SHIPPING_current'), newPrice: txt('NEW_current'),
       keepaUrl: 'https://keepa.com/#!product/5-' + d.asin, amazonUrl: 'https://www.amazon.co.jp/dp/' + d.asin, sentAt: jstISO() };
   }
+  // v0.0.34: 送った1枚だけバッジと削除ボタンを付ける（一覧は作り直さない）
+  function inListCard(c, d) {
+    if (c && c.isConnected) { markSent(c, '✓リストにあり'); const a = c.querySelector('.kfm-swacts'); if (a) addDelBtn(a, d, c); rendered = listStamp(); }
+    else { rendered = ''; schedule(); }
+  }
   async function sendGas(d, c) {
     if (!cfg.gasUrl || !cfg.gasKey) { closeSwipe(); openSettings(); return; }
     sending.add(d.asin);
@@ -1101,8 +1151,8 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     if (d.img) rememberImg(d.asin, d.img);
     const r = await gmReq('POST', gasApi(), JSON.stringify({ action: 'add', item, mode: 'reject' }));
     sending.delete(d.asin); closeSwipe();
-    if (r && r.ok && !r.duplicate) { listCache.set(d.asin, Object.assign({ addedAt: new Date().toISOString() }, item)); rendered = ''; schedule(); toast('追加しました', true); }
-    else if (r && r.duplicate) { if (!listCache.has(d.asin)) listCache.set(d.asin, Object.assign({}, item, { addedAt: r.addedAt })); rendered = ''; schedule(); toast(`すでにリストにあります（追加日: ${fmtDate(r.addedAt)}）`, 'warn'); }
+    if (r && r.ok && !r.duplicate) { listCache.set(d.asin, Object.assign({ addedAt: new Date().toISOString() }, item)); inListCard(c, d); toast('追加しました', true); }
+    else if (r && r.duplicate) { if (!listCache.has(d.asin)) listCache.set(d.asin, Object.assign({}, item, { addedAt: r.addedAt })); inListCard(c, d); toast(`すでにリストにあります（追加日: ${fmtDate(r.addedAt)}）`, 'warn'); }
     else { if (r && r.error) console.log('[kfm] send error', r.error); toast('送れませんでした。設定を確かめてください', false); }
   }
   async function sendCard(d, c) {
@@ -1123,20 +1173,26 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     closeSwipe();
     if (ok) { rememberSent(d.asin); markSent(c); toast('送りました', true); } else toast('送れませんでした。設定を確かめてください', false);
   }
+  function listStamp(keys) { keys = keys || [...cache.keys()].sort((a, b) => a - b); return keys.map(k => k + ':' + cache.get(k).asin).join(',') + '|L' + [...listCache.keys()].sort().join(',') + (listLoaded ? 'y' : 'n') + cfg.mode; }
   function renderList(grid, total) {
     const host = grid.closest('.ag-root-wrapper') || grid;
     let list = document.getElementById('kfm-list');
     if (!list || list.nextElementSibling !== host) { if (!list) { list = el('div'); list.id = 'kfm-list'; } host.before(list); }
     const keys = [...cache.keys()].sort((a, b) => a - b);
-    const stamp = keys.map(k => k + ':' + cache.get(k).asin).join(',') + '|L' + listCache.size + (listLoaded ? 'y' : 'n') + cfg.mode;
+    const stamp = listStamp(keys);
     if (stamp === rendered) return;
+    if ((swOpen && list.contains(swOpen)) || deleting.size) { clearTimeout(renderList._t); renderList._t = setTimeout(() => { try { schedule(); } catch (e) {} }, 600); return; }   // v0.0.34: 開いたスワイプのボタンを作り直して消さない
     rendered = stamp;
+    const keepY = window.scrollY, keepH = list.offsetHeight;   // v0.0.34: 作り直しでページが上に飛ばないよう位置を保つ
+    if (keepH) list.style.minHeight = keepH + 'px';
     list.textContent = '';
     padList(list);
     sortBar(list);
     list.appendChild(el('div', 'kfm-status', `${keys.length}${total ? ' / ' + total : ''} 件表示` + (harvesting ? '（読み込み中…）' : '')));
     keys.forEach(k => list.appendChild(card(cache.get(k))));
     resetShift(list);
+    clearTimeout(list._mh); list._mh = setTimeout(() => list.style.removeProperty('min-height'), 1500);   // 画像の読み込み中に高さが縮んで上に飛ぶのを防ぐ
+    if (Math.abs(window.scrollY - keepY) > 2) window.scrollTo(0, keepY);
   }
   // ---- アクティブなフィルター表示：全セルが未設定の行を隠す（:has の入れ子が使えないためクラス付与のみ）----
   function activeFilterPopup() {
