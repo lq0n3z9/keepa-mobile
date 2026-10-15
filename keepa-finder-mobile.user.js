@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.0
+// @version      0.1.1
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -72,7 +72,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   new MutationObserver(() => { if (isMobile()) setViewport(); })
     .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['content'] });
-  const VERSION = 'v0.1.0';
+  const VERSION = 'v0.1.1';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -2210,6 +2210,97 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   window.addEventListener('hashchange', () => { kfmCleanup(); setTimeout(kfmCleanup, 300); });
   window.addEventListener('pageshow', () => kfmCleanup());
   setInterval(() => { try { kfmCleanup(); } catch (e) {} }, 2000);   // 見張り: 画面が開いていないのに残ったロックを外す
+  // ==KFM-TABS-BEGIN== v0.1.1: 製品ファインダー以外のタブのスマホ表示（セレクタは 390px 実DOM で確認済み）
+  const KFM_ROUTES = ['deals', 'tracking', 'manage', 'notification', 'viewer', 'bestseller', 'topseller', 'sellerlookup', 'categorytree'];
+  function routeName() { const m = /^#!([a-z]+)/i.exec(location.hash || ''); return m ? m[1].toLowerCase() : ''; }
+  function applyRoute() {
+    const H = document.documentElement, r = routeName();
+    [...H.classList].forEach(c => { if (c.indexOf('kfm-route-') === 0 && c !== 'kfm-route-' + r) H.classList.remove(c); });
+    const on = isMobile() && KFM_ROUTES.indexOf(r) >= 0;
+    H.classList.toggle('kfm-tabs', on);
+    H.classList.toggle('kfm-route-' + r, on && !!r);
+  }
+  const T = 'html.kfm-tabs';
+  const R = n => 'html.kfm-route-' + n;
+  const TABS_CSS = `@media (max-width:600px){
+${T},${T} body{max-width:100vw!important;overflow-x:hidden!important}
+${T} #contentAlign,${T} #bodyPanel{width:auto!important;max-width:100vw!important;min-width:0!important;margin-left:0!important;margin-right:0!important;padding-left:8px!important;padding-right:8px!important;box-sizing:border-box!important;left:auto!important}
+${T} #bodyPanel>.card,${T} #bodyPanel>span.card{width:auto!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;margin-left:0!important;margin-right:0!important}
+${T} .knav-sub{max-width:100vw!important;overflow:hidden!important}
+${T} .knav-sub__inner{display:flex!important;flex-wrap:nowrap!important;align-items:center;overflow-x:auto!important;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:4px;padding:0 8px!important;max-width:100vw!important;box-sizing:border-box}
+${T} .knav-sub__link{flex:0 0 auto!important;white-space:nowrap!important;min-height:40px;display:inline-flex!important;align-items:center;font-size:14px!important}
+${T} .knav-sub .knav-sub__aside,${T} .knav-sub #widget__bucket_quota{display:none!important}
+${T} .data-container{width:auto!important;max-width:calc(100vw - 16px)!important;min-width:0!important;box-sizing:border-box!important;overflow:hidden!important}
+${T} .grid-wrapper{width:auto!important;max-width:calc(100vw - 16px)!important;box-sizing:border-box!important;border:1px solid #d5d9df;overflow:hidden!important}
+${T} .grid-wrapper .grid,${T} .grid-wrapper .ag-root-wrapper:not(.kfm-gridhost){width:100%!important;max-width:100%!important;box-sizing:border-box!important}
+${T} .grid-wrapper .ag-paging-panel{flex-wrap:wrap!important;height:auto!important;min-height:48px;gap:8px;font-size:14px!important;justify-content:center!important}
+${T} .grid-wrapper .ag-paging-button{min-width:40px;min-height:40px;display:inline-flex!important;align-items:center;justify-content:center}
+${T} .grid-wrapper .ag-header-cell-text,${T} .grid-wrapper .ag-cell{font-size:14px!important}
+${T} .grid-wrapper-tools{max-width:calc(100vw - 16px)!important;box-sizing:border-box!important;height:auto!important}
+${T} .grid-wrapper-tools>div:first-child{display:flex!important;flex-wrap:wrap!important;gap:8px;max-width:100%;width:auto!important;float:none!important}
+${T} .grid-wrapper-tools>div:first-child>span{float:none!important;position:static!important;flex:0 0 auto}
+${T} .grid-wrapper-tools .trigger{min-height:40px;display:inline-flex!important;align-items:center;font-size:14px!important}
+${R('deals')} #leftPanel{position:static!important;float:none!important;width:auto!important;max-width:100%!important;min-width:0!important;margin-top:60px!important;max-height:45vh;overflow-y:auto!important;box-sizing:border-box;border-bottom:1px solid #ddd;padding:0 8px}
+${R('deals')} #contentAlign{margin-top:8px!important;position:static!important}
+${R('deals')} #dealSearchBar{font-size:16px!important;min-height:40px;width:100%!important;box-sizing:border-box}
+${R('deals')} #leftPanel .panelBox__header{min-height:40px;font-size:15px!important}
+${R('deals')} #leftPanel .panelChip,${R('deals')} #leftPanel .panelChoice,${R('deals')} #leftPanel .panelCheck,${R('deals')} #dealsViewType>div{min-height:40px;font-size:14px!important}
+${R('deals')} #filterBar,${R('deals')} .filterContainer{width:auto!important;max-width:100%!important}
+${R('deals')} #filterCats.catGrid{display:grid!important;grid-template-columns:1fr!important;grid-template-rows:none!important;grid-auto-flow:row!important;column-gap:0!important}
+${R('deals')} .catRow{display:flex!important;align-items:center;min-height:40px}
+${R('deals')} .catRow__pick{flex:1 1 auto!important;min-width:0;min-height:40px;display:flex!important;align-items:center;gap:6px;font-size:14px!important}
+${R('deals')} .catRow__name{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;flex:1 1 auto;text-align:left}
+${R('deals')} .catRow__add,${R('deals')} .catRow__x{min-width:40px;min-height:40px}
+${R('deals')} #productPage0.productPage,${R('deals')} .productPage{display:flex!important;flex-wrap:wrap!important;justify-content:center;gap:8px}
+${R('deals')} .productContainer{min-width:0!important;width:calc(50% - 8px)!important;box-sizing:border-box}
+${R('deals')} .productContainer .title{max-width:100%!important}
+${R('tracking')} .dashboard .grid{display:grid!important;grid-template-columns:1fr!important;gap:10px}
+${R('tracking')} .dashboard .card{width:auto!important;max-width:100%!important;margin:0!important;box-sizing:border-box}
+${R('manage')} #kfm-tm-fab{right:max(12px,env(safe-area-inset-right));max-width:calc(100vw - 24px);white-space:nowrap}
+${R('manage')} #kfm-ver{max-width:calc(100vw - 16px)}
+${R('notification')} #bodyPanel>.group-header{font-size:18px!important;margin-left:0!important;padding:0 4px!important;word-break:break-word}
+${R('notification')} #notificationFilter{text-align:left!important}
+${R('notification')} #notificationFilterForm{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+${R('notification')} #notificationFilterForm label{font-size:14px!important;margin-left:0!important}
+${R('notification')} #notificationContent,${R('notification')} #notificationsBox{max-width:100%!important;overflow-x:auto;font-size:14px}
+${R('viewer')} .viewer-import,${R('viewer')} #importForm{max-width:100%!important;min-width:0!important}
+${R('viewer')} #importShelf{display:flex!important;flex-wrap:wrap!important;gap:6px;width:100%!important;max-width:100%!important;height:auto!important;overflow:visible!important;box-sizing:border-box}
+${R('viewer')} #importShelf>.viewer-import__pill{flex:1 1 30%!important;min-width:0!important;width:auto!important;max-width:100%!important;white-space:normal!important;min-height:40px;height:auto!important;padding:6px 8px!important;font-size:13px!important;line-height:1.2!important;box-sizing:border-box}
+${R('viewer')} #importInputList,${R('viewer')} #importInputOne{width:100%!important;max-width:100%!important;box-sizing:border-box!important;font-size:16px!important}
+${R('viewer')} #importInputList{min-height:140px}
+${R('viewer')} #importInputOne{min-height:40px}
+${R('viewer')} .viewer-import__status,${R('viewer')} .viewer-import__actions,${R('viewer')} #importOptions{display:flex!important;flex-wrap:wrap!important;gap:8px;max-width:100%}
+${R('viewer')} #importSubmit,${R('viewer')} #viewerImportFileTrigger{min-height:40px}
+${R('bestseller')} #besteller-category-container{width:auto!important;max-width:100%!important}
+${R('bestseller')} #bestSellerCategoryGrid.catGrid{display:grid!important;grid-template-columns:1fr!important;grid-template-rows:none!important;grid-auto-flow:row!important;column-gap:0!important}
+${R('bestseller')} #bestSellerCategoryGrid>a{display:block!important;font-size:15px!important;padding:10px 4px!important;min-height:40px;box-sizing:border-box;border-bottom:1px solid #eee}
+${R('topseller')} #grid-wrapper-seller{width:auto!important}
+${R('sellerlookup')} #bodyPanel>.card.-w-min-800{min-width:0!important}
+${R('sellerlookup')} .seller-lookup__searchrow{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:8px}
+${R('sellerlookup')} .seller-lookup__input,${R('sellerlookup')} .seller-lookup__input .mdc-text-field{width:100%!important;max-width:100%!important}
+${R('sellerlookup')} .seller-lookup__input .mdc-text-field{height:auto!important;display:flex!important;flex-direction:column-reverse!important}
+${R('sellerlookup')} .seller-lookup__input .mdc-floating-label{position:static!important;transform:none!important;display:block!important;font-size:13px!important;margin:0 0 4px!important}
+${R('sellerlookup')} .seller-lookup__input input#sellerLookupId.mdc-text-field__input{border:1px solid #c9ced6!important;border-radius:6px;padding:0 10px!important;height:40px!important;font-size:16px!important;box-sizing:border-box;width:100%!important}
+${R('sellerlookup')} .seller-lookup__options{display:flex!important;flex-wrap:wrap!important;gap:8px}
+${R('sellerlookup')} #sellerLookupShelf:not([hidden]),${R('sellerlookup')} #sellerLookupChips:not([hidden]){display:flex!important;flex-wrap:wrap!important;gap:8px;max-width:100%}
+${R('sellerlookup')} .seller-lookup__pill{min-height:40px;font-size:14px!important}
+${R('sellerlookup')} #sellerLookupResults{max-width:100%!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+${R('categorytree')} #grid-wrapper-category{width:auto!important}
+${R('categorytree')} #grid-category .ag-root-wrapper{position:relative!important;left:0!important;width:100%!important}
+${R('categorytree')} #grid-tools-categorytree .content-column{max-width:calc(100vw - 16px)!important;box-sizing:border-box}
+}`;
+  (function initTabs() {
+    const add = () => {
+      if (document.getElementById('kfm-tabs-css')) return;
+      const s = document.createElement('style'); s.id = 'kfm-tabs-css'; s.textContent = TABS_CSS;
+      (document.head || document.documentElement).appendChild(s);
+    };
+    add(); applyRoute();
+    window.addEventListener('hashchange', applyRoute);
+    window.addEventListener('resize', applyRoute);
+    document.addEventListener('DOMContentLoaded', () => { add(); applyRoute(); });
+  })();
+  // ==KFM-TABS-END==
   function start() {
     new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
     window.addEventListener('hashchange', schedule);
