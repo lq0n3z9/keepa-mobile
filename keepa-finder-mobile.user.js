@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.5
+// @version      0.1.6
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -72,7 +72,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   new MutationObserver(() => { if (isMobile()) setViewport(); })
     .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['content'] });
-  const VERSION = 'v0.1.5';
+  const VERSION = 'v0.1.6';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -444,6 +444,11 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
    #kfm-pager{background:#f7f8fa!important;box-shadow:0 0 0 1px #e1e4e8,0 6px 18px rgba(20,30,60,.18)!important}
    #kfm-pager::before{display:none}
    #kfm-pager .kfm-pg-ctl button{background:#fff;box-shadow:0 0 0 1px #e1e4e8}}
+/* v0.1.6: 件数が長くても矢印・アイコンを押し出さない */
+ #kfm-pager .kfm-pg-ctl,#kfm-pager .kfm-pg-icons{flex-shrink:0!important}
+ #kfm-pager .kfm-pg-info{flex:1 1 auto!important;min-width:0!important;overflow:hidden!important}
+ #kfm-pager .kfm-pg-sum{white-space:nowrap;overflow:hidden;text-overflow:clip}
+ #kfm-pager .kfm-pg-sum>span{white-space:nowrap;overflow:visible;text-overflow:clip}
  html.kfm-restoring #kfm-list>*{visibility:hidden}
  html.kfm-restoring #kfm-list{min-height:60vh;position:relative}
  html.kfm-restoring #kfm-list::before{content:'前の位置に戻しています…';position:absolute;left:0;right:0;top:40px;text-align:center;color:#888;font-size:14px;visibility:visible}
@@ -1476,6 +1481,14 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const used = r && r.height ? Math.max(r.height + bottomBarH(), window.innerHeight - r.top) : 0;   // v0.1.5: 浮いたバーの下の余白も含める
     list.style.paddingBottom = Math.ceil(used + 20) + 'px';
   }
+  // v0.1.6: 件数を枠に収める。カンマなし→文字を小さく（最小10px）→1行目を開始番号だけに。「…」で数字を隠さない
+  function fitCount(se, n) {
+    const fits = () => se.scrollWidth <= se.clientWidth + 0.5 && [...se.children].every(c => c.scrollWidth <= se.clientWidth + 0.5);
+    const set = (a, b) => { se.textContent = ''; se.appendChild(el('span', null, a)); se.appendChild(el('span', null, b)); };
+    const tries = [[`${n[0]}–${n[1]}`, `/ ${n[2]}件`], [`${n[0]}–`, `/ ${n[2]}件`], [`${n[0]}–`, `/${n[2]}`]];
+    for (const [a, b] of tries) { set(a, b); for (let f = 12; f >= 10; f -= 0.5) { se.style.fontSize = f + 'px'; if (!se.clientWidth || fits()) return; } }
+  }
+  window.addEventListener('resize', () => { const se = document.querySelector('#kfm-pager .kfm-pg-sum'); if (se && se.dataset.k) fitCount(se, se.dataset.k.split('|').map(x => x.replace(/,/g, ''))); });
   function updatePager(wrap) {
     const panel = wrap.querySelector('.ag-paging-panel');
     let pg = document.getElementById('kfm-pager');
@@ -1506,7 +1519,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const sumEl = panel.querySelector('.ag-paging-row-summary-panel');
     const nums = (sumEl ? norm(sumEl.textContent) : '').match(/[\d,]+/g) || [];
     { const se = pg.querySelector('.kfm-pg-sum'); const k = nums.length >= 3 ? nums[0] + '|' + nums[1] + '|' + nums[2] : '';
-      if (k) { if (se.dataset.k !== k) { se.dataset.k = k; se.textContent = ''; se.appendChild(el('span', null, `${nums[0]}–${nums[1]}`)); se.appendChild(el('span', null, `/ ${nums[2]}件`)); } }
+      if (k) { if (se.dataset.k !== k) { se.dataset.k = k; fitCount(se, nums.map(n => n.replace(/,/g, ''))); } }
       else { delete se.dataset.k; se.textContent = sumEl ? norm(sumEl.textContent) : ''; } }
     const desc = panel.querySelector('.ag-paging-description');
     const pn = (desc ? norm(desc.textContent) : norm(panel.textContent)).match(/(\d[\d,]*)\s*\/\s*(\d[\d,]*)\s*$/) ||
