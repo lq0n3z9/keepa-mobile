@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.1
+// @version      0.1.2
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -72,7 +72,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   new MutationObserver(() => { if (isMobile()) setViewport(); })
     .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['content'] });
-  const VERSION = 'v0.1.1';
+  const VERSION = 'v0.1.2';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -233,7 +233,12 @@ html.kfm.kfm-finder #kfm-sort{max-width:100%;box-sizing:border-box}
 /* ---- v0.0.21 トラッキング（スマホ用1列フォーム・実DOM準拠）---- */
 html.kfm-track #track{position:fixed!important;left:0!important;top:0!important;right:0!important;bottom:calc(68px + env(safe-area-inset-bottom))!important;width:auto!important;max-width:none!important;height:auto!important;
   margin:0!important;z-index:2147483000!important;background:#f4f5f7!important;overflow-y:auto!important;overflow-x:hidden!important;-webkit-overflow-scrolling:touch;
-  padding:12px 12px 24px!important;box-sizing:border-box!important;font-size:15px!important;transform:none!important;opacity:1!important}
+  padding:12px 12px 24px!important;box-sizing:border-box!important;font-size:15px!important;transform:none!important;opacity:1!important;
+  touch-action:pan-y!important;overscroll-behavior:contain;pointer-events:auto!important}
+/* v0.1.2: トラッキング画面ではページ全体のスクロールを止めない。Keepaの読み込み中レイヤーにタッチを取らせない */
+html.kfm-track:not(.kfm-tm-on),html.kfm-track:not(.kfm-tm-on) body{overflow-y:visible!important;position:static!important;height:auto!important;touch-action:auto!important}
+html.kfm-track #networkOverlay,html.kfm-track #networkBar,html.kfm-track #loadingBar,html.kfm-track #overlayShadow.hidden,html.kfm-track #productOverlay.hidden{pointer-events:none!important}
+html.kfm-track #track.kfm-trk-nudge{overflow-y:hidden!important}
 html.kfm-track #track *{box-sizing:border-box;max-width:100%}
 html.kfm-track #track .tracking,html.kfm-track #track form#trackingForm,html.kfm-track #track section,html.kfm-track #track .panels,html.kfm-track #track .panel.active{width:100%!important;min-width:0!important;float:none!important;height:auto!important}
 html.kfm-track #track .colorTip,html.kfm-track #track .tracking__suggestion,html.kfm-track #track .mdc-text-field__icon,html.kfm-track #track .tracking__block>br,html.kfm-track #track .tracking__block--meta>br{display:none!important}
@@ -1790,12 +1795,50 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const real = document.getElementById('submitTracking'), sv2 = bar.querySelector('.kfm-tb-save');
     if (sv2) sv2.disabled = !real || real.disabled || real.getAttribute('aria-disabled') === 'true';
   }
+  // v0.1.2: トラッキング画面を開いた直後にスクロールできない問題の対策
+  const ownSheetOpen = () => !!(document.getElementById('kfm-tm') || document.getElementById('kfm-tm-sheet') ||
+    (onFinder() && (document.getElementById('kfm-sheet') || document.getElementById('kfm-ask'))));
+  function trackUnlock() {   // 自分の画面が開いていなければ、html/body に付いたスクロール止めを即座に外す
+    if (!trackOn || ownSheetOpen()) return;
+    const H = document.documentElement;
+    if (!onFinder()) ['kfm-sheet', 'kfm-ask'].forEach(i => { const e = document.getElementById(i); if (e) e.remove(); });   // 製品ファインダーから持ち越した画面
+    H.classList.remove('kfm-tm-on');
+    [H, document.body].forEach(e => { if (!e) return; ['overflow', 'overflow-y', 'position', 'touch-action', 'height', 'top'].forEach(pr => { if (e.style.getPropertyValue(pr)) e.style.removeProperty(pr); }); });
+  }
+  let trkNudgeAt = 0;
+  function trackNudge() {   // iOS: 中身が後から増えた固定スクロール枠は、配置し直すまでスクロールしないことがある
+    const tr = document.getElementById('track');
+    if (!trackOn || !tr || kfmTouching || tr.classList.contains('kfm-trk-nudge')) return;
+    trkNudgeAt = Date.now();
+    const y = tr.scrollTop;
+    tr.classList.add('kfm-trk-nudge'); void tr.offsetHeight;
+    requestAnimationFrame(() => { tr.classList.remove('kfm-trk-nudge'); void tr.offsetHeight; if (!kfmTouching && Math.abs(tr.scrollTop - y) > 1) tr.scrollTop = y; });
+  }
+  let trkRO = null, trkMO = null, trkH = 0, trkNudgeT = 0;
+  function trackWatch() {
+    const tr = document.getElementById('track'); if (!tr) return;
+    if (!trkMO) {
+      trkMO = new MutationObserver(() => { if (trackOn) trackUnlock(); });
+      trkMO.observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'class'] });
+      if (document.body) trkMO.observe(document.body, { attributes: true, attributeFilter: ['style', 'class'] });
+    }
+    if (window.ResizeObserver && (!trkRO || trkRO._el !== tr)) {
+      if (trkRO) trkRO.disconnect();
+      trkRO = new ResizeObserver(() => {
+        if (!trackOn || Math.abs(tr.scrollHeight - trkH) < 2) return;
+        trkH = tr.scrollHeight; clearTimeout(trkNudgeT);
+        trkNudgeT = setTimeout(function n2() { if (kfmTouching) { trkNudgeT = setTimeout(n2, 300); return; } if (Date.now() - trkNudgeAt > 150) trackNudge(); }, 150);
+      });
+      trkRO._el = tr; trkRO.observe(tr); [...tr.children].forEach(c => trkRO.observe(c));
+    }
+  }
   function trackTick() {
     const on = isMobile() && trackVisible();
     if (on) trackDecorate();
     if (on !== trackOn) {
       trackOn = on; document.documentElement.classList.toggle('kfm-track', on);
       setViewport();
+      if (on) { trackUnlock(); trackWatch(); [0, 120, 400, 1000, 2000].forEach(t => setTimeout(trackNudge, t)); }
       if (!on) { [300, 1200].forEach(t => setTimeout(measureProduct, t)); }
     }
   }
