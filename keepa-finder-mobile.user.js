@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.3
+// @version      0.1.4
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -72,7 +72,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   new MutationObserver(() => { if (isMobile()) setViewport(); })
     .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['content'] });
-  const VERSION = 'v0.1.3';
+  const VERSION = 'v0.1.4';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -417,6 +417,14 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-pager .kfm-pg-sum{display:flex;flex-direction:column;font-size:12px;line-height:1.25;color:#555;font-variant-numeric:tabular-nums}
  #kfm-pager .kfm-pg-set,#kfm-pager .kfm-pg-trk,#kfm-pager .kfm-pg-list{width:30px;height:30px}
  #kfm-pager .kfm-pg-ctl{gap:2px}
+ #kfm-pager .kfm-pg-icons{display:flex;align-items:center;gap:4px;flex:0 0 auto;flex-direction:row!important;margin:0 14px 0 0}
+ #kfm-pager.kfm-hand-left .kfm-pg-icons{margin:0 0 0 14px}
+ #kfm-pager .kfm-pg-icons>button{box-sizing:border-box!important;width:32px!important;height:32px!important;min-width:32px!important;padding:0!important;margin:0!important;border:0!important;border-radius:50%;background:transparent!important;color:#888!important;display:inline-flex!important;align-items:center;justify-content:center;flex:0 0 32px}
+ #kfm-pager .kfm-pg-icons svg{width:18px!important;height:18px!important;display:block;flex:0 0 18px}
+ #kfm-pager .kfm-pg-ctl{margin-left:0}
+ #kfm-pager.kfm-hand-left .kfm-pg-ctl{margin-right:0}
+ #kfm-pager .kfm-pg-info{margin-right:auto}
+ #kfm-pager.kfm-hand-left .kfm-pg-info{margin-right:0;margin-left:auto}
  html.kfm-restoring #kfm-list>*{visibility:hidden}
  html.kfm-restoring #kfm-list{min-height:60vh;position:relative}
  html.kfm-restoring #kfm-list::before{content:'前の位置に戻しています…';position:absolute;left:0;right:0;top:40px;text-align:center;color:#888;font-size:14px;visibility:visible}
@@ -1456,6 +1464,11 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
       pg.innerHTML = '<div class="kfm-pg-info"><span class="kfm-pg-sum"></span><span class="kfm-pg-ver"></span></div><button type="button" class="kfm-pg-set" aria-label="送信設定" title="送信設定"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button><button type="button" class="kfm-pg-trk" aria-label="トラッキング整理" title="トラッキング整理">'+ICON_BROOM.replace(/20/g,'18')+'</button><button type="button" class="kfm-pg-list" aria-label="あとで見るリスト" title="あとで見るリスト"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg></button>' +
         '<div class="kfm-pg-ctl"><button type="button" aria-label="最初のページ">«</button><button type="button" aria-label="前のページ">‹</button>' +
         '<span class="kfm-pg-num"></span><button type="button" aria-label="次のページ">›</button><button type="button" aria-label="最後のページ">»</button></div>';
+      { const grp = el('div', 'kfm-pg-icons');   // v0.1.4: 3つのアイコンを1つの組にし、同じ箱・同じ線で揃える
+        ['.kfm-pg-set', '.kfm-pg-trk', '.kfm-pg-list'].forEach(q => { const b = pg.querySelector(q); if (!b) return; grp.appendChild(b);
+          const sv = b.querySelector('svg'); if (sv) { sv.setAttribute('width', '18'); sv.setAttribute('height', '18'); sv.setAttribute('viewBox', '0 0 24 24');
+            sv.setAttribute('stroke', 'currentColor'); sv.setAttribute('stroke-width', '2'); sv.setAttribute('stroke-linecap', 'round'); sv.setAttribute('stroke-linejoin', 'round'); } });
+        pg.querySelector('.kfm-pg-ctl').before(grp); }
       document.body.appendChild(pg); applyHand();
       pg.querySelector('.kfm-pg-trk').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); location.hash = '#!manage'; });
       pg.querySelector('.kfm-pg-list').addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); openListSheet(); });
