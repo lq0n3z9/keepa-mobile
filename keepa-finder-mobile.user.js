@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.9
+// @version      0.1.10
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -72,7 +72,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   new MutationObserver(() => { if (isMobile()) setViewport(); })
     .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['content'] });
-  const VERSION = 'v0.1.9';
+  const VERSION = 'v0.1.10';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -227,8 +227,16 @@
 /* v0.0.21: finder ではページ全体の横はみ出しを禁止（clip はスクロール領域を作らないので候補リストを壊さない） */
 html.kfm.kfm-finder,html.kfm.kfm-finder body{width:100%!important;max-width:100%!important;min-width:0!important;overflow-x:clip!important}
 @supports not (overflow:clip){html.kfm.kfm-finder,html.kfm.kfm-finder body{overflow-x:hidden!important}}
-html.kfm.kfm-finder .kfm-toolbar{display:flex!important;flex-wrap:wrap!important;gap:6px!important;width:auto!important;max-width:100%!important;min-width:0!important;overflow-x:visible!important;box-sizing:border-box!important}
-html.kfm.kfm-finder .kfm-toolbar>*{min-width:0!important;max-width:100%!important;flex:0 1 auto!important;white-space:nowrap}
+html.kfm.kfm-finder .kfm-toolbar,html.kfm.kfm-finder .grid-wrapper-tools>div:first-child{
+  display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important;
+  width:100%!important;max-width:100%!important;min-width:0!important;overflow:visible!important;box-sizing:border-box!important;
+  float:none!important;align-items:stretch}
+html.kfm.kfm-finder .kfm-toolbar>*,html.kfm.kfm-finder .grid-wrapper-tools>div:first-child>span{
+  min-width:0!important;max-width:100%!important;width:auto!important;flex:unset!important;float:none!important;position:static!important;
+  white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box}
+html.kfm.kfm-finder .kfm-toolbar .trigger,html.kfm.kfm-finder .grid-wrapper-tools .trigger{
+  display:inline-flex!important;align-items:center;justify-content:center;gap:4px;width:100%!important;min-height:40px;
+  padding:6px 4px!important;font-size:12px!important;box-sizing:border-box;margin:0!important}
 html.kfm.kfm-finder .kfm-toolbar-anc{width:auto!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
 html.kfm.kfm-finder #kfm-sort{max-width:100%;box-sizing:border-box}
 /* ---- v0.0.21 トラッキング（スマホ用1列フォーム・実DOM準拠）---- */
@@ -432,7 +440,12 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
    -webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%);
    box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 0 0 1px rgba(255,255,255,.55),inset 0 -1px 1px rgba(0,0,0,.05),0 8px 24px rgba(20,30,60,.18),0 1px 3px rgba(0,0,0,.08)!important}
  #kfm-pager::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;
-   background:radial-gradient(120% 70% at 20% 0%,rgba(255,255,255,.55),transparent 55%),linear-gradient(115deg,transparent 45%,rgba(255,255,255,.25) 55%,transparent 65%)}
+   background:linear-gradient(180deg,rgba(255,255,255,.2),transparent 60%)}
+ #kfm-pager button:focus,#kfm-pager button:focus-visible,#kfm-pager button:active{
+   outline:none!important;box-shadow:inset 0 1px 0 #fff,inset 0 0 0 .5px rgba(255,255,255,.8),0 2px 6px rgba(20,30,60,.15)!important;
+   -webkit-tap-highlight-color:transparent}
+ #kfm-pager .kfm-pg-icons>button:focus,#kfm-pager .kfm-pg-icons>button:focus-visible,#kfm-pager .kfm-pg-icons>button:active{
+   outline:none!important;box-shadow:none!important;background:transparent!important}
  #kfm-pager.kfm-pg-solo{padding-bottom:6px!important}
  #kfm-pager.kfm-hand-left{padding:6px 12px 6px 4px!important}
 /* v0.1.7: 件数欄はボタン類の残り幅（最低44px）を使い、中身は fitCount で縮める */
@@ -569,9 +582,28 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  /* v0.1.9: カテゴリチップの × を押しやすく */
  html.kfm .filter-values>span{display:inline-flex!important;align-items:center;gap:2px;margin:2px 4px 2px 0!important;padding:4px 4px 4px 8px!important;border:1px solid #d0d5dd;border-radius:14px;background:#f5f7fa;font-size:13px;line-height:1.2;max-width:100%;box-sizing:border-box}
  html.kfm .filter-values>span.clear-all{border-style:dashed;color:#666}
- html.kfm .filter-values>span>i[data-id],html.kfm .filter-values i[data-id]{
+ html.kfm .filter-values>span>i[data-id],html.kfm .filter-values i[data-id],
+ html.kfm .finder-pill--remove,html.kfm .finder-pill .fa-times{
    display:inline-flex!important;align-items:center;justify-content:center;flex:0 0 32px;width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;
-   margin:0!important;padding:0!important;font-size:16px!important;line-height:32px!important;border-radius:50%;color:#666;cursor:pointer;-webkit-tap-highlight-color:transparent}
+   margin:0!important;padding:0!important;font-size:16px!important;line-height:32px!important;border-radius:50%;color:#444;cursor:pointer;-webkit-tap-highlight-color:transparent}
+ html.kfm .filter-values i[data-id]::before,html.kfm .finder-pill--remove .fa-times::before{font-size:16px!important}
+ /* チップ行が浮きバーに隠れないよう余白 */
+ html.kfm.kfm-finder .grid-filter-form,html.kfm.kfm-finder #grid-form-finder{padding-bottom:calc(120px + env(safe-area-inset-bottom))!important}
+ html.kfm.kfm-finder .filter-text--autocomplete .filter-values{margin-bottom:12px!important;padding-bottom:8px!important}
+ html.kfm.kfm-finder .finder-pills{padding-bottom:8px!important;margin-bottom:8px!important}
+ /* 下バー: リセット・件数・探すが重ならない */
+ html.kfm body .filter-actions.kfm-bottombar,html.kfm body .kfm-bottombar.filter-actions{
+   display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:8px!important;row-gap:8px!important}
+ html.kfm body .filter-actions__trailing{display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:8px!important;
+   flex:1 1 100%!important;width:100%!important;min-width:0!important;margin:0!important;position:static!important}
+ html.kfm body .filter-actions__trailing .filter--reset,html.kfm body .filter-actions__trailing .filter-form--reset{
+   display:block!important;position:static!important;flex:1 1 auto!important;min-width:0!important;margin:0!important}
+ html.kfm body .filter-actions__trailing .filter-actions__action.-destructive{width:auto!important;max-width:100%!important;white-space:nowrap}
+ html.kfm body #totalResultsQuery{position:static!important;display:inline-flex!important;align-items:center;flex:0 0 auto!important;
+   margin:0!important;padding:6px 10px!important;border-radius:14px;background:#e8f0fe;color:#1a73e8;font-weight:700;font-size:13px;line-height:1.2;
+   float:none!important;transform:none!important}
+ html.kfm body #filterSubmit.kfm-search,html.kfm body .filter-actions__trailing #filterSubmit{
+   flex:1 1 100%!important;width:100%!important;order:99;margin:0!important}
  html.kfm input,html.kfm select,html.kfm textarea{font-size:16px!important;-webkit-text-size-adjust:100%}
  html.kfm .filter-row,html.kfm .filter-range,html.kfm .filter-text,html.kfm .filter-input{zoom:1!important;transform:none!important}
  html.kfm .filter-row .filter-row--label,html.kfm .filter-row .filter-row--label-extended{display:block!important;width:100%!important;
@@ -1539,16 +1571,59 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const used = r && r.height ? Math.max(r.height + bottomBarH(), window.innerHeight - r.top) : 0;   // v0.1.5: 浮いたバーの下の余白も含める
     list.style.paddingBottom = Math.ceil(used + 20) + 'px';
   }
-  // v0.1.7: 件数を必ず全部見せる。枠＝ボタン類を除いた残り幅。2行（範囲 / 総数）を12→9pxで試し、
-  // 入らなければ3行（開始– / 終了 / /総数件）にする。「…」や切り取りはしない
-  function fitCount(se, n) {
-    const box = se.parentElement || se;
-    const fits = () => [...se.children].every(c => c.scrollWidth <= box.clientWidth + 0.5) && se.scrollHeight <= (se.closest('#kfm-pager') || box).clientHeight + 0.5;
-    const set = (...a) => { se.textContent = ''; a.forEach(t => se.appendChild(el('span', null, t))); };
-    const tries = [[`${n[0]}–${n[1]}`, `/ ${n[2]}件`], [`${n[0]}–${n[1]}`, `/${n[2]}件`], [`${n[0]}–`, n[1], `/${n[2]}件`]];
-    for (const t of tries) { set(...t); for (let f = 12; f >= 9; f -= 0.5) { se.style.fontSize = f + 'px'; se.style.lineHeight = t.length > 2 ? '1.1' : ''; if (!box.clientWidth || fits()) return; } }
+  // v0.1.10: 件数はまず2行（10px以上）を優先。ページャーが隠れているときは測らない
+  function pagerVisible() {
+    const pg = document.getElementById('kfm-pager');
+    if (!pg) return false;
+    if (document.documentElement.classList.contains('kfm-ac-open')) return false;
+    if (document.getElementById('kfm-cols')) return false;
+    const st = getComputedStyle(pg);
+    if (st.display === 'none' || st.visibility === 'hidden' || Number(st.opacity) === 0) return false;
+    const r = pg.getBoundingClientRect();
+    return r.width > 40 && r.height > 20;
   }
-  window.addEventListener('resize', () => { const se = document.querySelector('#kfm-pager .kfm-pg-sum'); if (se && se.dataset.k) fitCount(se, se.dataset.k.split('|').map(x => x.replace(/,/g, ''))); });
+  function fitCount(se, n) {
+    if (!se || !n || n.length < 3) return;
+    const pg = se.closest('#kfm-pager');
+    const box = se.parentElement || se;
+    if (!pagerVisible() || !box.clientWidth) return;   // 隠れたまま測ると3行に落ちる
+    const fits = () => [...se.children].every(c => c.scrollWidth <= box.clientWidth + 0.5)
+      && se.scrollHeight <= (pg || box).clientHeight + 0.5;
+    const set = (...a) => { se.textContent = ''; a.forEach(txt => se.appendChild(el('span', null, txt))); };
+    // 2行を 12→10px で先に試す（ユーザー要望）。だめなら 9.5→9、それでもだめなら3行
+    const two = [[`${n[0]}–${n[1]}`, `/ ${n[2]}件`], [`${n[0]}–${n[1]}`, `/${n[2]}件`]];
+    for (const row of two) {
+      set(...row);
+      for (let f = 12; f >= 10; f -= 0.5) {
+        se.style.fontSize = f + 'px'; se.style.lineHeight = '1.25';
+        if (fits()) return;
+      }
+    }
+    for (const row of two) {
+      set(...row);
+      for (let f = 9.5; f >= 9; f -= 0.5) {
+        se.style.fontSize = f + 'px'; se.style.lineHeight = '1.2';
+        if (fits()) return;
+      }
+    }
+    set(`${n[0]}–`, n[1], `/${n[2]}件`);
+    for (let f = 11; f >= 9; f -= 0.5) {
+      se.style.fontSize = f + 'px'; se.style.lineHeight = '1.1';
+      if (fits()) return;
+    }
+  }
+  function refitPagerCount() {
+    const se = document.querySelector('#kfm-pager .kfm-pg-sum');
+    if (!se || !se.dataset.k) return;
+    // 強制再測定（dataset.k が同じでもやり直す）
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (!pagerVisible()) return;
+        fitCount(se, se.dataset.k.split('|').map(x => x.replace(/,/g, '')));
+      });
+    });
+  }
+  window.addEventListener('resize', () => refitPagerCount());
   function updatePager(wrap) {
     const panel = wrap.querySelector('.ag-paging-panel');
     let pg = document.getElementById('kfm-pager');
@@ -1579,7 +1654,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const sumEl = panel.querySelector('.ag-paging-row-summary-panel');
     const nums = (sumEl ? norm(sumEl.textContent) : '').match(/[\d,]+/g) || [];
     { const se = pg.querySelector('.kfm-pg-sum'); const k = nums.length >= 3 ? nums[0] + '|' + nums[1] + '|' + nums[2] : '';
-      if (k) { if (se.dataset.k !== k) { se.dataset.k = k; fitCount(se, nums.map(n => n.replace(/,/g, ''))); } }
+      if (k) { se.dataset.k = k; fitCount(se, nums.map(n => n.replace(/,/g, ''))); }
       else { delete se.dataset.k; se.textContent = sumEl ? norm(sumEl.textContent) : ''; } }
     const desc = panel.querySelector('.ag-paging-description');
     const pn = (desc ? norm(desc.textContent) : norm(panel.textContent)).match(/(\d[\d,]*)\s*\/\s*(\d[\d,]*)\s*$/) ||
@@ -1681,6 +1756,36 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     if (total && cache.size < total && !isTyping() && !posRestore) harvest(wrap).then(() => renderList(wrap, total));
     findByText(['列を設定', 'エクスポート', '高度なフィルター', '保存した検索条件']).forEach(e => {
       const p = e.parentElement; if (p && !p.closest('.ag-root,#kfm-list,.kfm-gridhost')) { p.classList.add('kfm-toolbar'); let a = p.parentElement; for (let i = 0; a && a !== document.body && i < 5; i++, a = a.parentElement) a.classList.add('kfm-toolbar-anc'); }
+    });
+    compactTools();
+  }
+  function compactTools() {
+    if (!mq.matches || !onFinder()) return;
+    const map = [
+      [/^列を設定/, '列'],
+      [/^列にジャンプ/, 'ジャンプ'],
+      [/^\d+\s*行/, m => (m[0] || '').replace(/\s+/g, '')],
+      [/^エクスポート/, '書出'],
+      [/^検索インサイト/, '分析'],
+      [/^API\s*クエリ/, 'API'],
+      [/^用語集/, '用語']
+    ];
+    document.querySelectorAll('.grid-wrapper-tools .trigger, .kfm-toolbar .trigger, .tool__column, .tool__jumpcolumn, .tool__glossary').forEach(el => {
+      const tEl = el.classList.contains('trigger') ? el : el.querySelector('.trigger') || el;
+      if (!tEl || tEl.dataset.kfmShort) return;
+      const raw = norm(tEl.textContent);
+      for (const [re, to] of map) {
+        const m = raw.match(re);
+        if (!m) continue;
+        const label = typeof to === 'function' ? to(m) : to;
+        const icon = tEl.querySelector('i.fa, i[class*="fa"], svg');
+        const ic = icon ? icon.cloneNode(true) : null;
+        tEl.dataset.kfmShort = '1'; el.dataset.kfmShort = '1';
+        tEl.textContent = '';
+        if (ic) tEl.appendChild(ic);
+        tEl.appendChild(document.createTextNode('\u2002' + label));
+        break;
+      }
     });
   }
 
@@ -2099,7 +2204,9 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   function acHideDone() {
     const bar = document.getElementById('kfm-ac-done');
     if (bar) { bar.classList.remove('kfm-ac-done-on'); bar.style.display = 'none'; bar._inp = null; }
+    const was = document.documentElement.classList.contains('kfm-ac-open');
     document.documentElement.classList.remove('kfm-ac-open');
+    if (was) refitPagerCount();
   }
   function acClose(inp) {
     acHideDone();
