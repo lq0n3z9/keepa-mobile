@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.8
+// @version      0.1.9
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -72,7 +72,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   new MutationObserver(() => { if (isMobile()) setViewport(); })
     .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['content'] });
-  const VERSION = 'v0.1.8';
+  const VERSION = 'v0.1.9';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -544,11 +544,11 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  html.kfm body .kfm-toggle{display:block;width:100%;text-align:left;padding:12px 10px;margin:8px 0 4px;font-size:16px;font-weight:700;
    background:#f2f4f7;border:1px solid #ccd;border-radius:8px;color:#222}
  html.kfm body .kfm-collapsed>*:not(.kfm-toggle){display:none!important}
- html.kfm body .kfm-bottombar{position:fixed!important;left:0;right:0;bottom:0;z-index:9999;display:flex!important;flex-wrap:nowrap;
-   overflow-x:auto;gap:6px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:rgba(255,255,255,.97);
-   border-top:1px solid #ccc;box-sizing:border-box;width:100%!important}
- html.kfm body .kfm-bottombar>*{flex:0 0 auto;font-size:13px}
- html.kfm body .kfm-search{flex:1 0 auto!important;font-size:16px!important;font-weight:700;min-height:44px}
+ html.kfm body .kfm-bottombar{position:fixed!important;left:0;right:0;bottom:0;z-index:9999;display:flex!important;flex-wrap:wrap!important;
+   overflow-x:hidden!important;gap:6px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:rgba(255,255,255,.97);
+   border-top:1px solid #ccc;box-sizing:border-box;width:100%!important;max-width:100vw!important;justify-content:stretch}
+ html.kfm body .kfm-bottombar>*{flex:1 1 auto;font-size:12px;min-width:0;max-width:100%;box-sizing:border-box}
+ html.kfm body .kfm-search{flex:1 1 100%!important;font-size:15px!important;font-weight:700;min-height:44px;width:100%!important;order:99}
  html.kfm.kfm-finder body{padding-bottom:80px!important}
  html.kfm{-webkit-text-size-adjust:100%}
  html.kfm body{min-width:0!important;width:auto!important}
@@ -565,7 +565,13 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  html.kfm.kfm-finder .filter-row input:not([type=checkbox]):not([type=radio]),html.kfm.kfm-finder .filter-row select{width:100%!important}
  html.kfm img,html.kfm svg,html.kfm canvas{max-width:100%!important}
  html.kfm .knav-row,html.kfm .kfm-toolbar,html.kfm .filter-range--seg{flex-wrap:wrap!important}
- html.kfm .kfm-bottombar{flex-wrap:nowrap!important;overflow-x:auto!important}
+ html.kfm .kfm-bottombar{flex-wrap:wrap!important;overflow-x:hidden!important}
+ /* v0.1.9: カテゴリチップの × を押しやすく */
+ html.kfm .filter-values>span{display:inline-flex!important;align-items:center;gap:2px;margin:2px 4px 2px 0!important;padding:4px 4px 4px 8px!important;border:1px solid #d0d5dd;border-radius:14px;background:#f5f7fa;font-size:13px;line-height:1.2;max-width:100%;box-sizing:border-box}
+ html.kfm .filter-values>span.clear-all{border-style:dashed;color:#666}
+ html.kfm .filter-values>span>i[data-id],html.kfm .filter-values i[data-id]{
+   display:inline-flex!important;align-items:center;justify-content:center;flex:0 0 32px;width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;
+   margin:0!important;padding:0!important;font-size:16px!important;line-height:32px!important;border-radius:50%;color:#666;cursor:pointer;-webkit-tap-highlight-color:transparent}
  html.kfm input,html.kfm select,html.kfm textarea{font-size:16px!important;-webkit-text-size-adjust:100%}
  html.kfm .filter-row,html.kfm .filter-range,html.kfm .filter-text,html.kfm .filter-input{zoom:1!important;transform:none!important}
  html.kfm .filter-row .filter-row--label,html.kfm .filter-row .filter-row--label-extended{display:block!important;width:100%!important;
@@ -590,20 +596,20 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  html.kfm.kfm-product #topPanel,html.kfm.kfm-product #wrapper,html.kfm.kfm-product .mainContent,html.kfm.kfm-product .knav-row{max-width:none!important}
  html.kfm.kfm-product .kfm-gridhost,html.kfm.kfm-product #kfm-list{display:none!important}
 
- /* v0.1.8: 列を設定（content-column）を触らない・スマホ用シート */
+ /* v0.1.9: 列を設定 — ネイティブは常に画面外、シートで操作 */
  html.kfm .content-column,html.kfm .content-column *{word-break:normal!important}
- html.kfm .content-column{z-index:2147483000!important}
- html.kfm.kfm-cols-open .content-column{position:fixed!important;left:-9999px!important;top:0!important;width:1px!important;height:1px!important;overflow:hidden!important;opacity:0!important;pointer-events:none!important}
+ html.kfm .content-column{position:fixed!important;left:-9999px!important;top:0!important;width:1px!important;height:1px!important;
+   overflow:hidden!important;opacity:0!important;pointer-events:none!important;z-index:-1!important}
  #kfm-cols{position:fixed;inset:0;z-index:2147483400;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;font:15px/1.4 -apple-system,system-ui,"Hiragino Sans",sans-serif}
  #kfm-cols .kfm-cols-sh{background:#fff;width:100%;height:92vh;max-height:92vh;border-radius:16px 16px 0 0;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom);box-sizing:border-box}
  #kfm-cols .kfm-cols-top{display:flex;align-items:center;gap:8px;padding:12px 12px 8px;border-bottom:1px solid #eee;flex:0 0 auto}
  #kfm-cols .kfm-cols-top b{flex:1 1 auto;font-size:16px}
  #kfm-cols .kfm-cols-top button{border:1px solid #ccc;background:#f5f6f8;border-radius:16px;padding:8px 12px;font-size:14px;min-height:40px}
  #kfm-cols .kfm-cols-top .kfm-cols-done{background:#1a73e8;border-color:#1a73e8;color:#fff;font-weight:700}
- #kfm-cols .kfm-cols-tools{display:flex;flex-wrap:wrap;gap:8px;padding:8px 12px;border-bottom:1px solid #f0f0f0;flex:0 0 auto;align-items:center}
- #kfm-cols .kfm-cols-tools input[type=search]{flex:1 1 140px;min-width:0;font-size:16px!important;padding:10px 12px;border:1px solid #ccc;border-radius:10px}
- #kfm-cols .kfm-cols-tools label{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#555;white-space:nowrap}
- #kfm-cols .kfm-cols-tools button{border:1px solid #ddd;background:#fff;border-radius:14px;padding:8px 10px;font-size:13px;min-height:40px;color:#333}
+ #kfm-cols .kfm-cols-tools{display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;border-bottom:1px solid #f0f0f0;flex:0 0 auto;align-items:center}
+ #kfm-cols .kfm-cols-tools input[type=search]{flex:1 1 120px;min-width:0;font-size:16px!important;padding:10px 12px;border:1px solid #ccc;border-radius:10px}
+ #kfm-cols .kfm-cols-tools label{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#555;white-space:nowrap;flex:0 0 auto}
+ #kfm-cols .kfm-cols-tools button{border:1px solid #ddd;background:#fff;border-radius:12px;padding:6px 8px;font-size:12px;min-height:36px;color:#333;flex:0 0 auto;white-space:nowrap}
  #kfm-cols .kfm-cols-body{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 0 12px}
  #kfm-cols .kfm-cols-g{border-bottom:1px solid #eee}
  #kfm-cols .kfm-cols-gh{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;border:0;background:#fafbfc;text-align:left;font-size:15px;font-weight:700;color:#222;min-height:48px;box-sizing:border-box}
@@ -621,15 +627,23 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-cols .kfm-cols-gi.kfm-cols-on .kfm-cols-sw::after{left:21px}
  #kfm-cols .kfm-cols-lab{flex:1 1 auto;min-width:0;font-size:15px;color:#222}
  #kfm-cols .kfm-cols-empty{padding:24px 16px;text-align:center;color:#888}
- /* v0.1.8: 複数選択オートコンプリート */
- ul.ui-autocomplete.kfm-ac-multi{z-index:2147483500!important;max-height:min(60vh,420px)!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch;padding-bottom:56px!important;box-sizing:border-box!important}
- ul.ui-autocomplete.kfm-ac-multi .ui-menu-item{min-height:44px;display:flex!important;align-items:center;font-size:15px!important}
- ul.ui-autocomplete.kfm-ac-multi .ui-menu-item>div{width:100%;padding:10px 12px!important;box-sizing:border-box}
- ul.ui-autocomplete.kfm-ac-multi .ui-menu-item.kfm-ac-on>div{background:#e8f0fe;font-weight:600}
- ul.ui-autocomplete.kfm-ac-multi .ui-menu-item.kfm-ac-on>div::before{content:'✓ ';color:#1a73e8}
+ /* v0.1.9: 複数選択オートコンプリートをシート化（最初からスタイル適用） */
+ html.kfm.kfm-ac-open #kfm-pager{visibility:hidden!important;pointer-events:none!important}
+ html.kfm ul.ui-autocomplete{z-index:2147483500!important;background:#fff!important;border:1px solid #d0d5dd!important;border-radius:14px 14px 0 0!important;
+   box-shadow:0 -8px 28px rgba(0,0,0,.18)!important;font-size:15px!important;box-sizing:border-box!important;
+   position:fixed!important;left:8px!important;right:8px!important;width:auto!important;max-width:none!important;
+   bottom:calc(64px + env(safe-area-inset-bottom))!important;top:auto!important;max-height:min(58vh,480px)!important;
+   overflow-y:auto!important;-webkit-overflow-scrolling:touch;padding:6px 0 8px!important;margin:0!important}
+ html.kfm ul.ui-autocomplete .ui-menu-item{min-height:48px;display:flex!important;align-items:center;margin:0!important;padding:0!important;border:0!important;font-size:15px!important}
+ html.kfm ul.ui-autocomplete .ui-menu-item>div{width:100%;padding:12px 14px!important;box-sizing:border-box;line-height:1.35!important;white-space:normal!important}
+ html.kfm ul.ui-autocomplete .ui-menu-item.ui-state-active>div,html.kfm ul.ui-autocomplete .ui-menu-item>div.ui-state-active{background:#f0f4f8!important;border:0!important;margin:0!important;color:#222!important}
+ html.kfm ul.ui-autocomplete .ui-menu-item.kfm-ac-on>div{background:#e8f0fe!important;font-weight:600}
+ html.kfm ul.ui-autocomplete .ui-menu-item.kfm-ac-on>div::before{content:'✓ ';color:#1a73e8}
+ html.kfm ul.ui-autocomplete .ui-item-select-all>div{font-weight:700;background:#f7f8fa!important}
  #kfm-ac-done{position:fixed;left:0;right:0;bottom:0;z-index:2147483600;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(255,255,255,.96);border-top:1px solid #e5e5e5;box-shadow:0 -4px 16px rgba(0,0,0,.08);display:none}
+ #kfm-ac-done.kfm-ac-done-on{display:block}
  #kfm-ac-done button{width:100%;min-height:48px;border:0;border-radius:12px;background:#1a73e8;color:#fff;font-size:17px;font-weight:700}
- #kfm-ver{position:fixed;left:4px;bottom:calc(2px + env(safe-area-inset-bottom));z-index:2147483646;color:#aaa;font:400 10px -apple-system,sans-serif;pointer-events:none;background:transparent}
+  #kfm-ver{position:fixed;left:4px;bottom:calc(2px + env(safe-area-inset-bottom));z-index:2147483646;color:#aaa;font:400 10px -apple-system,sans-serif;pointer-events:none;background:transparent}
  html.kfm-finder #kfm-ver{display:none}
  #kfm-badge{position:fixed;left:6px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:100000;background:rgba(26,127,55,.9);color:#fff;font:600 10px -apple-system,sans-serif;
    padding:3px 6px;border-radius:10px;transition:opacity .5s}
@@ -1839,18 +1853,48 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     }
   }
 
-  // ---------- v0.1.8: 列を設定（モバイル用ボトムシート）----------
-  function colPanelVisible() {
+  // ---------- v0.1.9: 列を設定（モバイル用ボトムシート）----------
+  let colsSuppress = false;   // 完了後、ネイティブが閉じるまでシートを開き直さない
+  function colPanelWanted() {
+    // Keepa は開くとき style.display="block"、閉じると "none"。CSSで常に画面外へ逃がすので computed は使わない
     const cc = document.querySelector('.content-column');
     if (!cc) return null;
-    const st = getComputedStyle(cc);
-    if (st.display === 'none' || st.visibility === 'hidden') return null;
+    const d = (cc.style && cc.style.display) || '';
+    if (d === 'none') return null;
+    if (d === 'block') return cc;
+    // 一部タブは class / 他手段。インラインが空でも offset と Keepa の表示意図を見る
+    if (!d && cc.getAttribute('style') && /display\s*:\s*none/i.test(cc.getAttribute('style'))) return null;
+    if (!d) {
+      // デフォルト非表示のことが多い — 明示 block 以外は開いていない扱い
+      return null;
+    }
     return cc;
   }
-  function closeNativeColPanel() {
-    const t = document.querySelector('.tool__column .trigger, .tool__column');
-    const cc = colPanelVisible();
-    if (cc && t) { try { t.click(); } catch (e) {} }
+  function forceCloseNativeCol(cc) {
+    const panel = cc || document.querySelector('.content-column');
+    if (panel) {
+      try { panel.style.setProperty('display', 'none', 'important'); } catch (e) {}
+      try { panel.style.display = 'none'; } catch (e) {}
+    }
+    // Keepa の内部状態を揃える（トグル）
+    const t = document.querySelector('.tool__column .trigger');
+    if (t && panel) {
+      // すでに none ならクリックで開いてしまうので、一時的に block にしてからトグル、は危険。
+      // 代わりに開いているときだけクリック: 呼び出し側で wanted だったものだけ
+    }
+  }
+  function syncCloseNativeCol() {
+    const panel = document.querySelector('.content-column');
+    const t = document.querySelector('.tool__column .trigger');
+    if (!panel || !t) return;
+    // Keepa が block のままならトリガーで閉じる
+    if (panel.style.display === 'block') {
+      try { t.click(); } catch (e) {}
+    }
+    // それでも残っていたら強制
+    if (panel.style.display === 'block' || !panel.style.display) {
+      try { panel.style.display = 'none'; } catch (e) {}
+    }
   }
   function readNativeColGroups(cc) {
     return [...cc.querySelectorAll('.column-group')].map(g => {
@@ -1867,7 +1911,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     }).filter(x => x.cols.length);
   }
   function openColSheet(cc) {
-    if (document.getElementById('kfm-cols')) return;
+    if (document.getElementById('kfm-cols') || colsSuppress) return;
     document.documentElement.classList.add('kfm-cols-open');
     const groups = readNativeColGroups(cc);
     const sh = el('div'); sh.id = 'kfm-cols';
@@ -1880,9 +1924,9 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const tools = el('div', 'kfm-cols-tools');
     const q = el('input'); q.type = 'search'; q.placeholder = '列名で探す'; q.setAttribute('enterkeyhint', 'search');
     const only = el('label'); const onlyCb = el('input'); onlyCb.type = 'checkbox';
-    only.appendChild(onlyCb); only.appendChild(document.createTextNode(' 表示中のみ'));
-    const showAll = el('button', null, 'すべて表示'); showAll.type = 'button';
-    const hideAll = el('button', null, 'すべて隠す'); hideAll.type = 'button';
+    only.appendChild(onlyCb); only.appendChild(document.createTextNode(' 表示中'));
+    const showAll = el('button', null, '全表示'); showAll.type = 'button';
+    const hideAll = el('button', null, '全隠し'); hideAll.type = 'button';
     [q, only, showAll, hideAll].forEach(x => tools.appendChild(x)); box.appendChild(tools);
     const body = el('div', 'kfm-cols-body'); box.appendChild(body);
 
@@ -1896,8 +1940,6 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     }
     function paint() {
       const live = readNativeColGroups(cc);
-      // keep name→index open state by name
-      const byName = new Map(live.map((g, i) => [g.name, i]));
       groups.length = 0; live.forEach(g => groups.push(g));
       const qq = norm(q.value).toLowerCase();
       const onlyOn = onlyCb.checked;
@@ -1910,7 +1952,6 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
           if (qq && !(c.label.toLowerCase().includes(qq) || g.name.toLowerCase().includes(qq))) return false;
           return true;
         });
-        // refresh counts from live
         g.onN = g.cols.filter(c => c.cb.checked).length;
         if (!cols.length && qq) return;
         if (onlyOn && !g.cols.some(c => c.cb.checked) && !cols.length) return;
@@ -1955,25 +1996,56 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     hideAll.addEventListener('click', e => { e.preventDefault(); const b = cc.querySelector('.hide-all'); if (b) b.click(); setTimeout(paint, 50); });
     reset.addEventListener('click', e => { e.preventDefault(); const b = cc.querySelector('.reset-all'); if (b) b.click(); setTimeout(paint, 80); });
     const close = () => {
-      sh.remove(); document.documentElement.classList.remove('kfm-cols-open');
-      closeNativeColPanel();
+      colsSuppress = true;
+      sh.remove();
+      document.documentElement.classList.remove('kfm-cols-open');
+      syncCloseNativeCol();
+      // Keepa が再度 block に戻しても、閉じるまで待つ
+      let n = 0;
+      const wait = setInterval(() => {
+        n++;
+        const panel = document.querySelector('.content-column');
+        const open = panel && panel.style.display === 'block';
+        if (open) syncCloseNativeCol();
+        if (!open || n > 20) {
+          clearInterval(wait);
+          // ネイティブが完全に閉じたら抑制解除（次の「列を設定」で開ける）
+          colsSuppress = false;
+        }
+      }, 100);
     };
-    done.addEventListener('click', e => { e.preventDefault(); close(); });
+    done.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); close(); });
     sh.addEventListener('click', e => { if (e.target === sh) close(); });
     document.body.appendChild(sh);
     paint();
   }
   function colSheetTick() {
-    if (!mq.matches) { const s = document.getElementById('kfm-cols'); if (s) s.remove(); document.documentElement.classList.remove('kfm-cols-open'); return; }
-    const cc = colPanelVisible();
-    if (cc) openColSheet(cc);
-    else {
+    if (!mq.matches) {
+      const s = document.getElementById('kfm-cols'); if (s) s.remove();
+      document.documentElement.classList.remove('kfm-cols-open');
+      colsSuppress = false; return;
+    }
+    if (colsSuppress) return;
+    const cc = colPanelWanted();
+    if (cc) {
+      document.documentElement.classList.add('kfm-cols-open'); // フラッシュ防止（シート前でも）
+      openColSheet(cc);
+    } else {
       const s = document.getElementById('kfm-cols');
       if (s) { s.remove(); document.documentElement.classList.remove('kfm-cols-open'); }
     }
   }
+  // 列を設定タップ直後にクラスを付けてフラッシュを防ぐ
+  document.addEventListener('click', e => {
+    if (!mq.matches) return;
+    const tr = e.target.closest && e.target.closest('.tool__column .trigger, .tool__column');
+    if (!tr) return;
+    colsSuppress = false;
+    document.documentElement.classList.add('kfm-cols-open');
+    setTimeout(() => { try { colSheetTick(); } catch (err) {} }, 0);
+  }, true);
 
-  // ---------- v0.1.8: 複数選択オートコンプリートを開いたまま ----------
+  // ---------- v0.1.9: 複数選択オートコンプリート ----------
   function acWrap(inp) {
     return inp && (inp.closest('.filter-text--autocomplete') || (inp.closest('.filter-text') && inp.closest('.filter-text').querySelector('.filter-values')));
   }
@@ -1992,7 +2064,8 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     return set;
   }
   function acItemName(li) {
-    const t = norm(li.textContent).replace(/^\s*✓\s*/, '');
+    const raw = (li.querySelector('div') ? li.querySelector('div').textContent : li.textContent) || '';
+    const t = norm(raw).replace(/^\s*✓\s*/, '');
     if (/^すべて選択/.test(t)) return { all: true, name: t };
     const m = t.match(/^(.*?)(?:\s*\(\d+\))?\s*$/);
     return { all: false, name: norm(m ? m[1] : t) };
@@ -2002,7 +2075,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     menu.classList.add('kfm-ac-multi');
     const sel = acSelectedNames(wrap);
     menu.querySelectorAll('li.ui-menu-item').forEach(li => {
-      if (li.classList.contains('ui-item-select-all')) return;
+      if (li.classList.contains('ui-item-select-all')) { li.classList.remove('kfm-ac-on'); return; }
       const info = acItemName(li);
       li.classList.toggle('kfm-ac-on', sel.has(info.name.toLowerCase()));
     });
@@ -2014,21 +2087,25 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
       const b = el('button', null, '完了'); b.type = 'button';
       b.addEventListener('click', e => {
         e.preventDefault(); e.stopPropagation();
-        acClose(inp || document.querySelector('.ui-autocomplete-input[aria-expanded="true"]'));
+        acClose(bar._inp || document.querySelector('.ui-autocomplete-input[aria-expanded="true"]'));
       });
       bar.appendChild(b); document.body.appendChild(bar);
     }
+    bar.classList.add('kfm-ac-done-on');
     bar.style.display = 'block';
     bar._inp = inp;
+    document.documentElement.classList.add('kfm-ac-open');
   }
   function acHideDone() {
     const bar = document.getElementById('kfm-ac-done');
-    if (bar) bar.style.display = 'none';
+    if (bar) { bar.classList.remove('kfm-ac-done-on'); bar.style.display = 'none'; bar._inp = null; }
+    document.documentElement.classList.remove('kfm-ac-open');
   }
   function acClose(inp) {
     acHideDone();
-    document.querySelectorAll('ul.ui-autocomplete.kfm-ac-multi').forEach(u => {
-      u.style.display = 'none'; u.classList.remove('kfm-ac-multi');
+    document.querySelectorAll('ul.ui-autocomplete').forEach(u => {
+      try { u.style.display = 'none'; } catch (e) {}
+      u.classList.remove('kfm-ac-multi');
     });
     if (inp) {
       try { inp.blur(); } catch (e) {}
@@ -2053,10 +2130,9 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     if (!mq.matches) return;
     const li = e.target.closest && e.target.closest('ul.ui-autocomplete li.ui-menu-item');
     if (!li) {
-      // outside tap closes
       const bar = document.getElementById('kfm-ac-done');
-      if (bar && bar.style.display === 'block') {
-        if (e.target.closest && (e.target.closest('#kfm-ac-done') || e.target.closest('ul.ui-autocomplete') || e.target.closest('.filter-text--autocomplete') || e.target.classList.contains('ui-autocomplete-input'))) return;
+      if (bar && bar.classList.contains('kfm-ac-done-on')) {
+        if (e.target.closest && (e.target.closest('#kfm-ac-done') || e.target.closest('ul.ui-autocomplete') || e.target.closest('.filter-text--autocomplete') || (e.target.classList && e.target.classList.contains('ui-autocomplete-input')))) return;
         acClose(bar._inp);
       }
       return;
@@ -2064,8 +2140,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const inp = (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('ui-autocomplete-input'))
       ? document.activeElement
       : (document.querySelector('.ui-autocomplete-input[aria-expanded="true"]') || null);
-    const wrap = acWrap(inp);
-    if (!wrap) return;
+    if (!acWrap(inp)) return;
     acKeep = inp;
   }, true);
   document.addEventListener('click', e => {
@@ -2075,14 +2150,21 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const inp = acKeep || (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('ui-autocomplete-input') ? document.activeElement : null);
     const wrap = acWrap(inp);
     if (!wrap || !inp) return;
-    // keep open for continuous multi-select
     setTimeout(() => {
       acReopen(inp);
       setTimeout(() => {
         const menu = acVisibleMenu();
         if (menu) { acMarkMenu(menu, wrap); acEnsureDone(inp); }
+        else acHideDone();
       }, 60);
     }, 30);
+  }, true);
+  // フォーカス外れ・メニュー消滅ですぐ完了バーを消す
+  document.addEventListener('focusout', e => {
+    if (!mq.matches) return;
+    setTimeout(() => {
+      if (!acVisibleMenu()) acHideDone();
+    }, 120);
   }, true);
   function acTick() {
     if (!mq.matches) { acHideDone(); return; }
@@ -2096,6 +2178,13 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     acMarkMenu(menu, wrap);
     acEnsureDone(inp);
   }
+  // メニュー出現を即座に検知（初回から ✓ とスタイル）
+  let acMoT = 0;
+  new MutationObserver(() => {
+    if (!mq.matches) return;
+    clearTimeout(acMoT);
+    acMoT = setTimeout(() => { try { acTick(); } catch (e) {} }, 40);
+  }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'aria-expanded'] });
 
   // ---------- loop ----------
   let timer = 0, busy = false;
