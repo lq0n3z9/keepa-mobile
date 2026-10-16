@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.12
+// @version      0.1.13
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -81,7 +81,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.12';
+  const VERSION = 'v0.1.13';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -727,8 +727,12 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-badge{position:fixed;left:6px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:100000;background:rgba(26,127,55,.9);color:#fff;font:600 10px -apple-system,sans-serif;
    padding:3px 6px;border-radius:10px;transition:opacity .5s}
  #kfm-badge b{margin-left:6px;cursor:pointer}`;
-  const st = document.createElement('style'); st.textContent = css + TM_CSS;
-  (document.head || document.documentElement).appendChild(st);
+  const st = document.createElement('style'); st.id = 'kfm-main-css'; st.textContent = css + TM_CSS;
+  (function mountCss() {
+    const p = document.head || document.documentElement;
+    if (p) { if (!document.getElementById('kfm-main-css')) p.appendChild(st); }
+    else setTimeout(mountCss, 0);
+  })();
 
   // ---------- grid (virtualized ag-Grid → own card list) ----------
   const px = v => parseFloat(v) || 0;
@@ -1629,21 +1633,46 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const r = pg.getBoundingClientRect();
     return r.width > 40 && r.height > 20;
   }
+  // v0.1.13: Keepa の件数テキストを a–b / N件 に整形。総数は summary か .finder-query--results
+  function finderResultTotal() {
+    const elr = document.querySelector('.finder-query--results');
+    if (!elr) return '';
+    const m = norm(elr.textContent).match(/([\d,]+)\s*(?:商品|products?|results?|items?)/i);
+    return m ? m[1].replace(/,/g, '') : '';
+  }
+  function parsePagerRange(rawSum) {
+    const raw = norm(rawSum);
+    if (!raw) return null;
+    // "1 から 100 / 6411" | "1 to 100 of 6,411" | "1–100 of 6411" | "1 から 100 / more"
+    let m = raw.match(/([\d,]+)\s*(?:から|to|–|-|—)\s*([\d,]+)\s*(?:\/|of)\s*([\d,]+|more|以上)/i);
+    if (!m) m = raw.match(/([\d,]+)\s*[–-]\s*([\d,]+)\s*(?:\/|of)\s*([\d,]+|more)/i);
+    if (m) {
+      const tot = /^more$/i.test(m[3]) || m[3] === '以上' ? '' : m[3].replace(/,/g, '');
+      return { a: m[1].replace(/,/g, ''), b: m[2].replace(/,/g, ''), tot };
+    }
+    const nums = raw.match(/[\d,]+/g) || [];
+    if (nums.length >= 3) return { a: nums[0].replace(/,/g, ''), b: nums[1].replace(/,/g, ''), tot: nums[2].replace(/,/g, '') };
+    if (nums.length >= 2) return { a: nums[0].replace(/,/g, ''), b: nums[1].replace(/,/g, ''), tot: '' };
+    return null;
+  }
   function fitCount(se, n) {
     if (!se || !n || n.length < 2) return;
     const pg = se.closest('#kfm-pager');
     const box = se.parentElement || se;
-    if (!pagerVisible() || !box.clientWidth) return;   // 隠れたまま測ると3行に落ちる
     const a = String(n[0]).replace(/,/g, ''), b = String(n[1]).replace(/,/g, '');
     const rawTot = n.length >= 3 ? String(n[2]).replace(/,/g, '') : '';
     const isMore = !rawTot || /^more$/i.test(rawTot);
     const tot = isMore ? 'more' : rawTot;
+    // v0.1.13: 必ず先に2行を書く（測れなくても生テキストを残さない）
+    const set = (...parts) => { se.textContent = ''; parts.forEach(txt => se.appendChild(el('span', null, txt))); };
+    const line2 = isMore ? '/ more' : `/ ${tot}件`;
+    set(`${a}–${b}`, line2);
+    se.style.fontSize = '12px'; se.style.lineHeight = '1.25';
+    if (!pagerVisible() || !box.clientWidth) return;
     const fits = () => [...se.children].every(c => c.scrollWidth <= box.clientWidth + 0.5)
       && se.scrollHeight <= (pg || box).clientHeight + 0.5;
-    const set = (...a) => { se.textContent = ''; a.forEach(txt => se.appendChild(el('span', null, txt))); };
-    // v0.1.12: 2行を ≥11px 優先。件数不明は "/ more"。狭い幅は 10→9px、最後に3行
-    const line2 = isMore ? ['/ more', '/more'] : [`/ ${tot}件`, `/${tot}件`];
-    const two = [[`${a}–${b}`, line2[0]], [`${a}–${b}`, line2[1]]];
+    const line2opts = isMore ? ['/ more', '/more'] : [`/ ${tot}件`, `/${tot}件`];
+    const two = [[`${a}–${b}`, line2opts[0]], [`${a}–${b}`, line2opts[1]]];
     for (const row of two) {
       set(...row);
       for (let f = 12; f >= 11; f -= 0.5) {
@@ -1658,24 +1687,25 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
         if (fits()) return;
       }
     }
-    if (isMore) {
-      set(`${a}–${b}`, '/ more');
-      for (let f = 11; f >= 8.5; f -= 0.5) {
-        se.style.fontSize = f + 'px'; se.style.lineHeight = '1.15';
-        if (fits()) return;
-      }
-      return;
-    }
-    set(`${a}–`, b, `/${tot}件`);
-    for (let f = 11; f >= 8.5; f -= 0.5) {
-      se.style.fontSize = f + 'px'; se.style.lineHeight = '1.1';
+    // v0.1.13: 常に2行（a–b / N件）。3行フォールバックは使わない
+    set(`${a}–${b}`, isMore ? '/ more' : `/ ${tot}件`);
+    for (let f = 11; f >= 8; f -= 0.5) {
+      se.style.fontSize = f + 'px'; se.style.lineHeight = '1.15';
       if (fits()) return;
     }
+    se.style.fontSize = '8px'; se.style.lineHeight = '1.1';
   }
   function refitPagerCount() {
+    // v0.1.13: resize でも summary を再パース（ページ番号補正を含める）
+    const w = document.querySelector('.ag-root-wrapper');
+    if (w) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { try { updatePager(w); } catch (e) {} });
+      });
+      return;
+    }
     const se = document.querySelector('#kfm-pager .kfm-pg-sum');
     if (!se || !se.dataset.k) return;
-    // 強制再測定（dataset.k が同じでもやり直す）
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         if (!pagerVisible()) return;
@@ -1684,6 +1714,31 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     });
   }
   window.addEventListener('resize', () => refitPagerCount());
+  // v0.1.13: summary / 商品数の文字変化のたび再整形（body MO は characterData を見ていない）
+  let sumWatchMO = null, sumWatchEl = null, sumWatchT = 0;
+  function armPagerSumWatch(sumEl) {
+    const resEl = document.querySelector('.finder-query--results');
+    const panel = document.querySelector('.ag-paging-panel');
+    const lbCur = panel && panel.querySelector('[ref=lbCurrent], [data-ref=lbCurrent]');
+    const lbTot = panel && panel.querySelector('[ref=lbTotal], [data-ref=lbTotal]');
+    const targets = [sumEl, resEl, lbCur, lbTot].filter(Boolean);
+    if (!targets.length) return;
+    if (!sumWatchMO) {
+      sumWatchMO = new MutationObserver(() => {
+        clearTimeout(sumWatchT);
+        sumWatchT = setTimeout(() => {
+          const w = document.querySelector('.ag-root-wrapper');
+          if (w) updatePager(w);
+        }, 30);
+      });
+    }
+    // 付け直し（要素が差し替わるため）
+    try { sumWatchMO.disconnect(); } catch (e) {}
+    targets.forEach(t => {
+      try { sumWatchMO.observe(t, { characterData: true, childList: true, subtree: true }); } catch (e) {}
+    });
+    sumWatchEl = sumEl;
+  }
   function updatePager(wrap) {
     const panel = wrap.querySelector('.ag-paging-panel');
     let pg = document.getElementById('kfm-pager');
@@ -1713,17 +1768,29 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     }
     const sumEl = panel.querySelector('.ag-paging-row-summary-panel');
     const rawSum = sumEl ? norm(sumEl.textContent) : '';
-    const nums = rawSum.match(/[\d,]+/g) || [];
-    const isMoreTot = /\bmore\b/i.test(rawSum) || /以上/.test(rawSum);
+    armPagerSumWatch(sumEl);
     { const se = pg.querySelector('.kfm-pg-sum');
-      if (nums.length >= 3) {
-        const parts = nums.slice(0, 3).map(n => n.replace(/,/g, ''));
+      const parsed = parsePagerRange(rawSum);
+      if (parsed) {
+        let tot = parsed.tot;
+        if (!tot) tot = finderResultTotal();   // summary が more でもファインダー表示の総数を使う
+        let a = parsed.a, b = parsed.b;
+        // Keepa summary がページ送り後も "1 から 100" のまま残ることがある → 現在ページから補正
+        if (tot && tot !== 'more') {
+          const st = pgState(panel);
+          const cur = st.cur | 0;
+          const span = Math.max(1, (+b || 0) - (+a || 0) + 1);
+          if (cur > 1 && +a === 1) {
+            a = String((cur - 1) * span + 1);
+            b = String(Math.min(+a + span - 1, +tot));
+          }
+        }
+        const parts = [a, b, tot || 'more'];
         se.dataset.k = parts.join('|'); fitCount(se, parts);
-      } else if (nums.length >= 2) {
-        // フィルター画面など: "1 から 100 / more" → 1–100 / more
-        const parts = [nums[0].replace(/,/g, ''), nums[1].replace(/,/g, ''), isMoreTot || nums.length < 3 ? 'more' : ''];
-        se.dataset.k = parts.join('|'); fitCount(se, parts);
-      } else { delete se.dataset.k; se.textContent = rawSum; } }
+      } else {
+        // v0.1.13: 生テキストは出さない（読み込み中など）
+        delete se.dataset.k; se.textContent = '';
+      } }
     const desc = panel.querySelector('.ag-paging-description');
     const pn = (desc ? norm(desc.textContent) : norm(panel.textContent)).match(/(\d[\d,]*)\s*\/\s*(\d[\d,]*)\s*$/) ||
       (desc ? norm(desc.textContent) : '').match(/(\d[\d,]*)\D+(\d[\d,]*)/);
