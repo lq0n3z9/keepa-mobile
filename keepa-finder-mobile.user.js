@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.15
+// @version      0.1.16
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -81,7 +81,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.15';
+  const VERSION = 'v0.1.16';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -474,51 +474,66 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-pager.kfm-hand-left .kfm-pg-ctl{margin-right:0}
  #kfm-pager .kfm-pg-info{margin-right:auto}
  #kfm-pager.kfm-hand-left .kfm-pg-info{margin-right:0;margin-left:auto}
-/* v0.1.12: Liquid Glass 案A（iOS Safari）。ガラスは ::after に置き、本体は overflow で矢印を胶囊内に収める */
+/* v0.1.16: より強い Liquid Glass（本体に blur）+ 件数/アイコン/矢印を space-between で均等配置 */
  #kfm-pager{position:fixed;left:8px!important;right:8px!important;width:auto!important;max-width:calc(100vw - 16px)!important;
-   border-radius:999px;border:0!important;padding:6px 10px 6px 12px!important;min-height:60px;
-   gap:2px!important;box-sizing:border-box!important;overflow:visible!important;
-   background:transparent!important;
-   -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
-   box-shadow:none!important;transform:none!important;-webkit-transform:none!important;z-index:9998;
-   display:flex;align-items:center}
+   border-radius:999px;padding:6px 12px!important;min-height:60px;
+   gap:0!important;box-sizing:border-box!important;overflow:visible!important;
+   border:1px solid rgba(255,255,255,.6)!important;
+   background:linear-gradient(165deg,rgba(255,255,255,.34) 0%,rgba(255,255,255,.28) 45%,rgba(255,255,255,.30) 100%)!important;
+   -webkit-backdrop-filter:blur(28px) saturate(200%) brightness(1.08)!important;
+   backdrop-filter:blur(28px) saturate(200%) brightness(1.08)!important;
+   -webkit-box-shadow:inset 0 1.5px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(15,25,45,.10),inset 0 0 20px rgba(255,255,255,.22),
+     0 10px 28px rgba(20,30,60,.20),0 2px 6px rgba(0,0,0,.10)!important;
+   box-shadow:inset 0 1.5px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(15,25,45,.10),inset 0 0 20px rgba(255,255,255,.22),
+     0 10px 28px rgba(20,30,60,.20),0 2px 6px rgba(0,0,0,.10)!important;
+   transform:none!important;-webkit-transform:none!important;z-index:9998;
+   display:flex!important;align-items:center!important;justify-content:space-between!important;
+   isolation:isolate}
  #kfm-pager::after{content:'';position:absolute;inset:0;border-radius:inherit;z-index:-1;pointer-events:none;
-   background:rgba(255,255,255,.55)!important;
-   -webkit-backdrop-filter:blur(20px) saturate(180%)!important;backdrop-filter:blur(20px) saturate(180%)!important;
-   -webkit-box-shadow:inset 0 0 0 1px rgba(255,255,255,.75),0 8px 24px rgba(20,30,60,.16),0 1px 3px rgba(0,0,0,.08);
-   box-shadow:inset 0 0 0 1px rgba(255,255,255,.75),0 8px 24px rgba(20,30,60,.16),0 1px 3px rgba(0,0,0,.08)}
- #kfm-pager::before{display:none!important;content:none!important;background:none!important}
+   background:transparent!important;border:0!important;
+   -webkit-backdrop-filter:none!important;backdrop-filter:none!important;box-shadow:none!important}
+ #kfm-pager::before{content:'';position:absolute;left:12%;right:12%;top:1px;height:38%;border-radius:999px;z-index:0;pointer-events:none;
+   background:linear-gradient(180deg,rgba(255,255,255,.50),rgba(255,255,255,0))!important;
+   opacity:.7;display:block!important}
  #kfm-pager button:focus,#kfm-pager button:focus-visible,#kfm-pager button:active{
    outline:none!important;box-shadow:inset 0 1px 0 #fff,inset 0 0 0 .5px rgba(255,255,255,.8),0 2px 6px rgba(20,30,60,.15)!important;
    -webkit-tap-highlight-color:transparent}
  #kfm-pager .kfm-pg-icons>button:focus,#kfm-pager .kfm-pg-icons>button:focus-visible,#kfm-pager .kfm-pg-icons>button:active{
    outline:none!important;box-shadow:none!important;background:transparent!important}
  #kfm-pager.kfm-pg-solo{padding-bottom:6px!important}
- #kfm-pager.kfm-hand-left{padding:6px 12px 6px 10px!important}
-/* v0.1.12: 件数は flex・基準〜64px。狭い幅では縮めてはみ出し防止。アイコン/矢印は固定 */
- #kfm-pager .kfm-pg-info{flex:1 1 64px!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;box-sizing:border-box!important}
- #kfm-pager .kfm-pg-icons{margin:0 2px 0 0!important;gap:0!important;flex:0 0 auto!important;flex-shrink:0!important}
- #kfm-pager.kfm-hand-left .kfm-pg-icons{margin:0 0 0 2px!important}
- #kfm-pager .kfm-pg-ctl{gap:0!important;flex:0 0 auto!important;flex-shrink:0!important;margin-left:0!important}
- #kfm-pager.kfm-hand-left .kfm-pg-ctl{margin-right:0!important}
- #kfm-pager .kfm-pg-sum{display:flex!important;flex-direction:column!important;white-space:normal!important;overflow:hidden!important;text-overflow:clip;min-width:0;max-width:100%;color:#333;box-sizing:border-box}
+ #kfm-pager.kfm-hand-left{padding:6px 12px!important}
+ /* 3グループ均等: 件数 | アイコン | 矢印（左手は row-reverse でも space-between が効く） */
+ #kfm-pager .kfm-pg-info{flex:0 1 auto!important;min-width:0!important;max-width:42%!important;overflow:hidden!important;
+   box-sizing:border-box!important;margin:0!important;position:relative;z-index:1}
+ #kfm-pager .kfm-pg-icons{margin:0!important;gap:0!important;flex:0 0 auto!important;flex-shrink:0!important;position:relative;z-index:1}
+ #kfm-pager.kfm-hand-left .kfm-pg-icons{margin:0!important}
+ #kfm-pager .kfm-pg-ctl{gap:0!important;flex:0 0 auto!important;flex-shrink:0!important;margin:0!important;position:relative;z-index:1}
+ #kfm-pager.kfm-hand-left .kfm-pg-ctl{margin:0!important}
+ #kfm-pager .kfm-pg-sum{display:flex!important;flex-direction:column!important;white-space:normal!important;overflow:hidden!important;text-overflow:clip;min-width:0;max-width:100%;color:#222;box-sizing:border-box;
+   text-shadow:0 0 6px rgba(255,255,255,.95),0 1px 0 rgba(255,255,255,.8)}
  #kfm-pager .kfm-pg-sum>span{display:block!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:clip!important;max-width:100%}
  #kfm-pager .kfm-pg-sum>span:first-child{font-weight:700;color:#111}
- #kfm-pager .kfm-pg-icons>button{color:#555!important}
+ #kfm-pager .kfm-pg-icons>button{color:#333!important;filter:drop-shadow(0 0 3px rgba(255,255,255,.9))}
  #kfm-pager .kfm-pg-ctl button{width:44px;height:44px;border-radius:50%;color:#1c1c1e;font-weight:600;flex:0 0 44px;box-sizing:border-box;
-   background:linear-gradient(180deg,rgba(255,255,255,.78),rgba(255,255,255,.38));box-shadow:inset 0 1px 0 #fff,inset 0 0 0 .5px rgba(255,255,255,.8),0 1px 3px rgba(20,30,60,.12)}
- #kfm-pager .kfm-pg-ctl button:disabled{opacity:.35;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.6)}
+   border:1px solid rgba(255,255,255,.55)!important;
+   background:linear-gradient(180deg,rgba(255,255,255,.40),rgba(255,255,255,.18))!important;
+   -webkit-backdrop-filter:blur(18px) saturate(200%) brightness(1.06)!important;
+   backdrop-filter:blur(18px) saturate(200%) brightness(1.06)!important;
+   -webkit-box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(15,25,45,.10),0 2px 8px rgba(20,30,60,.16);
+   box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -1px 0 rgba(15,25,45,.10),0 2px 8px rgba(20,30,60,.16)}
+ #kfm-pager .kfm-pg-ctl button:disabled{opacity:.35;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.5)}
  @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-   #kfm-pager::after{background:rgba(255,255,255,.82)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
-   #kfm-pager::before{display:none}
-   #kfm-pager .kfm-pg-ctl button{background:rgba(255,255,255,.9);box-shadow:0 0 0 1px rgba(255,255,255,.8)}}
+   #kfm-pager{background:rgba(255,255,255,.82)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+   #kfm-pager::before{opacity:.4}
+   #kfm-pager .kfm-pg-ctl button{background:rgba(255,255,255,.88)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+     box-shadow:0 0 0 1px rgba(255,255,255,.7),0 2px 6px rgba(20,30,60,.12)}}
  #kfm-pager .kfm-pg-ctl,#kfm-pager .kfm-pg-icons{flex-shrink:0!important}
  html.kfm-restoring #kfm-list>*{visibility:hidden}
  html.kfm-restoring #kfm-list{min-height:60vh;position:relative}
  html.kfm-restoring #kfm-list::before{content:'前の位置に戻しています…';position:absolute;left:0;right:0;top:40px;text-align:center;color:#888;font-size:14px;visibility:visible}
  html.kfm-restoring #kfm-pager .kfm-pg-sum{visibility:hidden}
- #kfm-pager.kfm-hand-left .kfm-pg-ctl{margin-left:0;margin-right:auto}
- #kfm-pager.kfm-hand-left .kfm-pg-info{text-align:right;align-items:flex-end}
+ #kfm-pager.kfm-hand-left .kfm-pg-ctl{margin:0!important}
+ #kfm-pager.kfm-hand-left .kfm-pg-info{text-align:right;align-items:flex-end;margin:0!important}
  #kfm-sheet .kfm-set-hand{display:flex;align-items:center;gap:16px;font-size:15px;padding:4px 0}
  #kfm-sheet .kfm-set-hand>b{font-weight:600;color:#333}
  #kfm-list .kfm-all{display:none;margin-top:10px;padding-top:8px;border-top:1px dashed #ddd}
