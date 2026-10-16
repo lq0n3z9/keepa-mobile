@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.17
+// @version      0.1.18
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -82,7 +82,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.17';
+  const VERSION = 'v0.1.18';
   // v0.1.17: iOS はスクロールでアドレスバーが伸び縮みするたび・キーボード開閉のたびに resize が来る。
   // 高さだけの変化では重い作り直しをしない（スクロールのカクつきの原因）
   // v0.1.17: 同じクラスを付け外しし直さない（html のクラス書き換えはページ全体の再計算になる。付け外しの無限ループでスクロールが重かった）
@@ -692,6 +692,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  html.kfm .filter-values i[data-id]::before,html.kfm .finder-pill--remove .fa-times::before{font-size:16px!important}
  /* チップ行が浮きバーに隠れないよう余白 */
  html.kfm.kfm-finder .grid-filter-form,html.kfm.kfm-finder #grid-form-finder{padding-bottom:calc(120px + env(safe-area-inset-bottom))!important}
+ html.kfm.kfm-finder #grid-form-finder:empty{padding:0!important;min-height:0!important}
  html.kfm.kfm-finder .filter-text--autocomplete .filter-values{margin-bottom:12px!important;padding-bottom:8px!important}
  html.kfm.kfm-finder .finder-pills{padding-bottom:8px!important;margin-bottom:8px!important}
  /* 下バー: リセット・件数・探すが重ならない */
@@ -1799,7 +1800,8 @@ ${SCROLL_CSS}`;
   function finderResultsViewActive() {
     const form = document.getElementById('grid-form-finder');
     if (form) {
-      try { if (getComputedStyle(form).display !== 'none') return false; } catch (e) {}
+      // v0.1.18: 再読み込み直後は中身が空のフォームが display:block のまま残る（結果一覧なのにページャーが出なかった）。中身があるときだけフィルター画面とみなす
+      try { if (getComputedStyle(form).display !== 'none' && form.childElementCount > 0) return false; } catch (e) {}
     }
     const data = document.querySelector('.data-container');
     if (data) {
@@ -1833,7 +1835,7 @@ ${SCROLL_CSS}`;
     });
     // フィルター↔結果の切替は style.display / opacity の変化
     attrTargets.forEach(t => {
-      try { sumWatchMO.observe(t, { attributes: true, attributeFilter: ['style', 'class'] }); } catch (e) {}
+      try { sumWatchMO.observe(t, { attributes: true, attributeFilter: ['style', 'class'], childList: t === form }); } catch (e) {}
     });
     sumWatchEl = sumEl;
   }
@@ -2417,13 +2419,15 @@ ${SCROLL_CSS}`;
       if (!idEl || String(idEl.getAttribute('data-id')) === '-1') return;
       const lab = chip.querySelector('span');
       const name = norm(lab ? lab.textContent : chip.textContent.replace(/×/g, ''));
-      if (name && name !== 'すべてクリア') set.add(name.toLowerCase());
+      if (name && name !== 'すべてクリア') set.add(acKey(name));
     });
     return set;
   }
+  // v0.1.18: 候補とチップで「·」「･」「・」など表記が違う／候補の頭に「親カテゴリ »」が付くので、比べる前にそろえる
+  const acKey = s => norm(String(s || '').normalize('NFKC').replace(/[\u00B7\u2027\u30FB\uFF65\u2022]/g, '・')).toLowerCase();
   function acItemName(li) {
     const raw = (li.querySelector('div') ? li.querySelector('div').textContent : li.textContent) || '';
-    const t = norm(raw).replace(/^\s*✓\s*/, '');
+    const t = norm(norm(raw).replace(/^\s*✓\s*/, '').split('»').pop());
     if (/^すべて選択/.test(t)) return { all: true, name: t };
     const m = t.match(/^(.*?)(?:\s*\(\d+\))?\s*$/);
     return { all: false, name: norm(m ? m[1] : t) };
@@ -2435,7 +2439,7 @@ ${SCROLL_CSS}`;
     menu.querySelectorAll('li.ui-menu-item').forEach(li => {
       if (li.classList.contains('ui-item-select-all')) { kc(li, 'kfm-ac-on', false); return; }
       const info = acItemName(li);
-      kc(li, 'kfm-ac-on', sel.has(info.name.toLowerCase()));
+      kc(li, 'kfm-ac-on', sel.has(acKey(info.name)));
     });
   }
   function acEnsureDone(inp) {
@@ -2485,7 +2489,19 @@ ${SCROLL_CSS}`;
       return st.display !== 'none' && st.visibility !== 'hidden' && u.getClientRects().length && u.children.length;
     });
   }
-  let acKeep = null;
+  let acKeep = null, acQ = '', acScroll = 0;
+  // v0.1.18: 文字で絞り込んでから選んでも、同じ検索語・同じ位置のまま候補を出し直す（連続選択）
+  const acRemember = li => {
+    const inp = (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('ui-autocomplete-input'))
+      ? document.activeElement : document.querySelector('.ui-autocomplete-input[aria-expanded="true"]');
+    if (!inp || !acWrap(inp)) return;
+    acKeep = inp; acQ = inp.value || ''; const m = li.closest('ul.ui-autocomplete'); acScroll = m ? m.scrollTop : 0;
+  };
+  document.addEventListener('touchstart', e => {
+    if (!mq.matches) return;
+    const li = e.target.closest && e.target.closest('ul.ui-autocomplete li.ui-menu-item');
+    if (li) acRemember(li);
+  }, { capture: true, passive: true });
   document.addEventListener('mousedown', e => {
     if (!mq.matches) return;
     const li = e.target.closest && e.target.closest('ul.ui-autocomplete li.ui-menu-item');
@@ -2501,7 +2517,7 @@ ${SCROLL_CSS}`;
       ? document.activeElement
       : (document.querySelector('.ui-autocomplete-input[aria-expanded="true"]') || null);
     if (!acWrap(inp)) return;
-    acKeep = inp;
+    if (acKeep !== inp || !acQ) acRemember(li);
   }, true);
   document.addEventListener('click', e => {
     if (!mq.matches) return;
@@ -2510,13 +2526,17 @@ ${SCROLL_CSS}`;
     const inp = acKeep || (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('ui-autocomplete-input') ? document.activeElement : null);
     const wrap = acWrap(inp);
     if (!wrap || !inp) return;
+    const q = acQ, sc = acScroll;
     setTimeout(() => {
+      if (q && inp.value !== q) { try { inp.value = q; } catch (er) {} }
       acReopen(inp);
-      setTimeout(() => {
+      let n = 0;
+      (function fin() {
         const menu = acVisibleMenu();
-        if (menu) { acMarkMenu(menu, wrap); acEnsureDone(inp); }
-        else acHideDone();
-      }, 60);
+        if (menu) { acMarkMenu(menu, wrap); acEnsureDone(inp); if (sc) menu.scrollTop = sc; acQ = ''; return; }
+        if (++n < 8) { setTimeout(fin, 80); return; }   // 絞り込み検索は結果が遅れて来る
+        acQ = ''; acHideDone();
+      })();
     }, 30);
   }, true);
   // フォーカス外れ・メニュー消滅ですぐ完了バーを消す
@@ -3189,7 +3209,9 @@ ${SCROLL_CSS}`;
     if (!on || !document.body) return;
     setViewport(); badge();
     busy = true;
-    try { cardify(); if (onFinder()) { groupChecks(); fixRanges(); numericKeyboards(); bottomBar(); filterEdit(); activeFilterPopup(); const l = document.getElementById('kfm-list'); if (l) sortBar(l); fixOverflow(); } colSheetTick(); acTick();  }
+    try { cardify(); if (onFinder()) { groupChecks(); fixRanges(); numericKeyboards(); bottomBar(); filterEdit(); activeFilterPopup(); const l = document.getElementById('kfm-list'); if (l) sortBar(l); fixOverflow(); } colSheetTick(); acTick();
+      if (onFinder()) { const w = document.querySelector('.ag-root-wrapper'), pg = document.getElementById('kfm-pager');   // v0.1.18: 画面の切り替わりを取りこぼさない
+        if (w && (!pg || (pg.style.display === 'none') === finderResultsViewActive())) { try { updatePager(w); } catch (e) {} } } }
     finally { setTimeout(() => { busy = false; }, 0); }
   }
   const schedule = () => { if (!busy && !timer) timer = setTimeout(run, isTyping() ? 1000 : 250); };
