@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.13
+// @version      0.1.14
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -81,7 +81,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.13';
+  const VERSION = 'v0.1.14';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -1626,6 +1626,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   function pagerVisible() {
     const pg = document.getElementById('kfm-pager');
     if (!pg) return false;
+    if (!finderResultsViewActive()) return false;
     if (document.documentElement.classList.contains('kfm-ac-open')) return false;
     if (document.getElementById('kfm-cols')) return false;
     const st = getComputedStyle(pg);
@@ -1716,13 +1717,28 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   window.addEventListener('resize', () => refitPagerCount());
   // v0.1.13: summary / 商品数の文字変化のたび再整形（body MO は characterData を見ていない）
   let sumWatchMO = null, sumWatchEl = null, sumWatchT = 0;
+  // v0.1.14: 結果一覧表示中だけページャーを出す（フィルター画面の #grid-form-finder が display:none のとき）
+  function finderResultsViewActive() {
+    const form = document.getElementById('grid-form-finder');
+    if (form) {
+      try { if (getComputedStyle(form).display !== 'none') return false; } catch (e) {}
+    }
+    const data = document.querySelector('.data-container');
+    if (data) {
+      try { if (Number(getComputedStyle(data).opacity) === 0) return false; } catch (e) {}
+    }
+    return true;
+  }
   function armPagerSumWatch(sumEl) {
     const resEl = document.querySelector('.finder-query--results');
     const panel = document.querySelector('.ag-paging-panel');
     const lbCur = panel && panel.querySelector('[ref=lbCurrent], [data-ref=lbCurrent]');
     const lbTot = panel && panel.querySelector('[ref=lbTotal], [data-ref=lbTotal]');
+    const form = document.getElementById('grid-form-finder');
+    const data = document.querySelector('.data-container');
     const targets = [sumEl, resEl, lbCur, lbTot].filter(Boolean);
-    if (!targets.length) return;
+    const attrTargets = [form, data].filter(Boolean);
+    if (!targets.length && !attrTargets.length) return;
     if (!sumWatchMO) {
       sumWatchMO = new MutationObserver(() => {
         clearTimeout(sumWatchT);
@@ -1737,12 +1753,23 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     targets.forEach(t => {
       try { sumWatchMO.observe(t, { characterData: true, childList: true, subtree: true }); } catch (e) {}
     });
+    // フィルター↔結果の切替は style.display / opacity の変化
+    attrTargets.forEach(t => {
+      try { sumWatchMO.observe(t, { attributes: true, attributeFilter: ['style', 'class'] }); } catch (e) {}
+    });
     sumWatchEl = sumEl;
   }
   function updatePager(wrap) {
     const panel = wrap.querySelector('.ag-paging-panel');
     let pg = document.getElementById('kfm-pager');
     if (!panel) { if (pg) pg.remove(); return; }
+    // v0.1.14: フィルター画面では隠す（結果一覧のときだけ表示）
+    if (!finderResultsViewActive()) {
+      if (pg) { pg.style.display = 'none'; pg.setAttribute('aria-hidden', 'true'); }
+      const l = document.getElementById('kfm-list'); if (l) l.style.paddingBottom = '';
+      return;
+    }
+    if (pg) { pg.style.display = ''; pg.removeAttribute('aria-hidden'); }
     if (!pg) {
       pg = el('div'); pg.id = 'kfm-pager';
       pg.innerHTML = '<div class="kfm-pg-info"><span class="kfm-pg-sum"></span><span class="kfm-pg-ver"></span></div><button type="button" class="kfm-pg-set" aria-label="送信設定" title="送信設定"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button><button type="button" class="kfm-pg-trk" aria-label="トラッキング整理" title="トラッキング整理">'+ICON_BROOM.replace(/20/g,'18')+'</button><button type="button" class="kfm-pg-list" aria-label="あとで見るリスト" title="あとで見るリスト"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg></button>' +
@@ -1817,9 +1844,14 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   let posRestore = null;      // 戻し中の状態
   let posArmed = true;        // 読み込み直後・ファインダーに戻ったとき
   let posHideAt = 0;
-  const posHide = on => { if (on && !document.documentElement.classList.contains('kfm-restoring')) posHideAt = Date.now(); document.documentElement.classList.toggle('kfm-restoring', !!on); };   // 戻し中は途中のページを見せない
+  const posHide = on => {   // 戻し中は途中のページを見せない
+    const root = document.documentElement;
+    if (!root) return;   // document-start で html 未準備のことがある
+    if (on && !root.classList.contains('kfm-restoring')) posHideAt = Date.now();
+    root.classList.toggle('kfm-restoring', !!on);
+  };
   const posPending = () => { const r = posGet(); return !!(r && r.hash === location.hash && (r.page > 1 || r.asin || r.y)); };
-  if (onFinder() && posPending()) posHide(true);
+  if (document.documentElement && onFinder() && posPending()) posHide(true);
   setInterval(() => { if ((!posRestore && !posArmed) || !onFinder() || Date.now() - posHideAt > 20000) posHide(false); }, 1000);   // 見張り: 隠したままにしない
   let posSaveT = 0;
   function posPanel() { const w = document.querySelector('.ag-root-wrapper'); return w && w.querySelector('.ag-paging-panel'); }
@@ -2430,11 +2462,15 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   }
   // メニュー出現を即座に検知（初回から ✓ とスタイル）
   let acMoT = 0;
-  new MutationObserver(() => {
-    if (!mq.matches) return;
-    clearTimeout(acMoT);
-    acMoT = setTimeout(() => { try { acTick(); } catch (e) {} }, 40);
-  }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'aria-expanded'] });
+  (function armAcMo() {
+    const root = document.documentElement;
+    if (!root) { setTimeout(armAcMo, 0); return; }
+    new MutationObserver(() => {
+      if (!mq.matches) return;
+      clearTimeout(acMoT);
+      acMoT = setTimeout(() => { try { acTick(); } catch (e) {} }, 40);
+    }).observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'aria-expanded'] });
+  })();
 
   // ---------- loop ----------
   let timer = 0, busy = false;
