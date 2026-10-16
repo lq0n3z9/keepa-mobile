@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.18
+// @version      0.1.19
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -82,7 +82,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.18';
+  const VERSION = 'v0.1.19';
   // v0.1.17: iOS はスクロールでアドレスバーが伸び縮みするたび・キーボード開閉のたびに resize が来る。
   // 高さだけの変化では重い作り直しをしない（スクロールのカクつきの原因）
   // v0.1.17: 同じクラスを付け外しし直さない（html のクラス書き換えはページ全体の再計算になる。付け外しの無限ループでスクロールが重かった）
@@ -1490,7 +1490,14 @@ ${SCROLL_CSS}`;
       f.querySelectorAll('.filter-row').forEach(r => {
         const cells = r.querySelectorAll('.filter-range--cell');
         if (!cells.length) return;
-        r.classList.toggle('kfm-allinactive', [...cells].every(c => c.querySelector('.inactive')));
+        // v0.1.19: 数値が全部空でも、チェック（✓ 在庫切れ など）や他の条件がある行は隠さない
+        const extra = [...r.querySelectorAll('.filter--checkbox')].some(x => norm(x.textContent))
+          || (() => {   // 数値欄・見出し以外に文字がある（例: サブカテゴリー: ○○）
+            let rest = r.textContent || '';
+            r.querySelectorAll('.filter-row--label, .filter-range--cell').forEach(x => { rest = rest.split(x.textContent || '').join(' '); });
+            return !!norm(rest);
+          })();
+        kc(r, 'kfm-allinactive', !extra && [...cells].every(c => c.querySelector('.inactive')));
       });
     });
   }
