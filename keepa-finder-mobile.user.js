@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.16
+// @version      0.1.17
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -73,7 +73,8 @@
     const root = document.documentElement;
     if (!root || typeof root.nodeType !== 'number') return;
     try {
-      new MutationObserver(() => { if (isMobile()) setViewport(); })
+      let vpRaf = 0;   // v0.1.17: 変化のたび毎回ではなく1フレームに1回だけ
+      new MutationObserver(() => { if (vpRaf) return; vpRaf = requestAnimationFrame(() => { vpRaf = 0; if (isMobile()) setViewport(); }); })
         .observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['content'] });
     } catch (e) { /* document-start で Node 未準備のことがある */ }
   }
@@ -81,14 +82,53 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.16';
+  const VERSION = 'v0.1.17';
+  // v0.1.17: iOS はスクロールでアドレスバーが伸び縮みするたび・キーボード開閉のたびに resize が来る。
+  // 高さだけの変化では重い作り直しをしない（スクロールのカクつきの原因）
+  // v0.1.17: 同じクラスを付け外しし直さない（html のクラス書き換えはページ全体の再計算になる。付け外しの無限ループでスクロールが重かった）
+  const kc = (el, c, on) => { if (!el || !el.classList) return; on = !!on; if (el.classList.contains(c) !== on) el.classList.toggle(c, on); };
+  const kfmLastW = {};
+  const kfmWidthChanged = k => { const w = window.innerWidth; if (kfmLastW[k] === w) return false; kfmLastW[k] = w; return true; };
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
-  const cssEsc = s => { try { return (window.CSS && CSS.escape) ? cssEsc(s) : String(s).replace(/[^a-zA-Z0-9_-]/g, '\\$&'); } catch (e) { return String(s); } };
+  const cssEsc = s => { try { return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/[^a-zA-Z0-9_-]/g, '\\$&'); } catch (e) { return String(s); } };
   const has = (label, list) => list.some(k => norm(label).toLowerCase().replace(/\s/g, '')
     .includes(k.toLowerCase().replace(/\s/g, '')));
 
+  // v0.1.17: スクロールを滑らかに・効いたり効かなかったりをなくす
+  const SCROLL_CSS = `
+ html.kfm body .knav-row,html.kfm.kfm-open-nav body .knav-row{flex-wrap:nowrap!important;overflow-x:auto!important;overflow-y:hidden!important;max-height:none!important;
+   touch-action:pan-x pan-y;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+ html.kfm body .knav-row>*{flex:0 0 auto}
+ #kfm-sort,html.kfm-tabs .knav-sub__inner,html.kfm-tabs #sellerLookupResults{touch-action:pan-x pan-y;overscroll-behavior-x:contain}
+ html.kfm ul.ui-autocomplete,#kfm-cols .kfm-cols-body,#kfm-sheet .kfm-sh-list,#kfm-tm .kfm-tm-list,#kfm-tm-sheet .kfm-tm-ul,#kfm-ovf,
+ html.kfm body .generalOverlay:has(.grid-filter-form--view-only),html.kfm body .generalOverlay.kfm-afov{overscroll-behavior:contain}
+ #kfm-list .kfm-c{contain:layout paint}
+ #kfm-pager{transform:translateZ(0);contain:layout style}
+
+ /* v0.1.17: 画面の高さはアドレスバー込みの vh ではなく、見えている高さ (dvh) で */
+ #kfm-cols .kfm-cols-sh{height:92dvh;max-height:92dvh}
+ #kfm-sheet .kfm-sh{max-height:75dvh} #kfm-tm-sheet .kfm-tm-box{max-height:85dvh}
+ /* v0.1.17: キーボードが開いている間（html.kfm-kb）。--kfm-vvtop/--kfm-vvh = 見えている範囲、--kfm-kb = キーボードで隠れた高さ */
+ html.kfm-kb #kfm-pager,html.kfm-kb #kfm-ver,html.kfm-kb #kfm-badge,html.kfm-kb #kfm-toast{visibility:hidden!important;pointer-events:none!important}
+ html.kfm-kb body .kfm-bottombar:not(.kfm-kb-host){visibility:hidden!important;pointer-events:none!important}
+ html.kfm-kb body .kfm-bottombar.kfm-kb-host{top:auto!important;bottom:var(--kfm-kb,0px)!important;padding-bottom:8px!important;transition:none!important}
+ html.kfm-kb #kfm-cols,html.kfm-kb #kfm-sheet,html.kfm-kb #kfm-tm-sheet,html.kfm-kb #kfm-ask,html.kfm-kb #kfm-tm{top:var(--kfm-vvtop,0px)!important;bottom:auto!important;height:var(--kfm-vvh,100%)!important}
+ html.kfm-kb #kfm-cols .kfm-cols-sh{height:calc(var(--kfm-vvh,92dvh) - 8px)!important;max-height:none!important;padding-bottom:0!important}
+ html.kfm-kb #kfm-sheet .kfm-sh,html.kfm-kb #kfm-tm-sheet .kfm-tm-box{max-height:calc(var(--kfm-vvh,75dvh) - 8px)!important;padding-bottom:8px!important}
+ html.kfm-kb ul.ui-autocomplete{bottom:calc(var(--kfm-kb,0px) + 64px)!important;max-height:var(--kfm-acmax,40vh)!important}
+ /* v0.1.17: 「フィルターへジャンプ」の候補が下バーの中で切れて見えなかった → バーの上に出す */
+ html.kfm body .kfm-bottombar:focus-within{overflow:visible!important}
+ html.kfm body .kfm-bottombar .content-jump{position:absolute!important;left:0!important;right:0!important;top:auto!important;bottom:calc(100% + 6px)!important;width:auto!important;
+   max-height:50vh;overflow-y:auto!important;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:#fff!important;border:1px solid #d0d5dd;border-radius:12px;box-shadow:0 -6px 24px rgba(0,0,0,.16);box-sizing:border-box;z-index:5}
+ html.kfm-kb body .kfm-bottombar.kfm-kb-host>*:not(:focus-within){display:none!important}
+ html.kfm-kb body .kfm-bottombar.kfm-kb-host .content-jump{max-height:calc(var(--kfm-vvh,60vh) - 72px)!important}
+ html.kfm-kb #kfm-ac-done{bottom:var(--kfm-kb,0px)!important;padding-bottom:10px!important}
+ html.kfm-kb body .generalOverlay:has(.grid-filter-form--view-only),html.kfm-kb body .generalOverlay.kfm-afov{top:calc(var(--kfm-vvtop,0px) + 8px)!important;max-height:calc(var(--kfm-vvh,100vh) - 16px)!important}
+ html.kfm-kb.kfm-track #track{top:var(--kfm-vvtop,0px)!important;bottom:calc(var(--kfm-kb,0px) + 60px)!important}
+ html.kfm-kb.kfm-track #kfm-trackbar{bottom:var(--kfm-kb,0px)!important;height:60px!important;box-sizing:border-box!important;padding:6px 12px!important}
+`;
   const TM_CSS = `
  #kfm-tm-fab{position:fixed;right:12px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:2147483000;display:inline-flex;align-items:center;gap:6px;height:44px;padding:0 16px;border:0;border-radius:22px;background:#1a73e8;color:#fff;font:600 15px/1 -apple-system,system-ui,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.25)}
  #kfm-tm-fab svg{display:block;flex:0 0 auto}
@@ -398,7 +438,8 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-list .kfm-f span{display:block;font-size:12px;color:#888;margin-bottom:1px}
  #kfm-list .kfm-f b{display:block;font-size:17px;font-weight:700;line-height:1.25;overflow-wrap:anywhere}
  #kfm-list .kfm-c{position:relative;padding:0!important;overflow:hidden;background:#1a73e8!important}
- #kfm-list .kfm-inner{position:relative;background:#fff;padding:12px 12px 36px;border-radius:12px;touch-action:pan-y;will-change:transform;z-index:1}
+ #kfm-list .kfm-inner{position:relative;background:#fff;padding:12px 12px 36px;border-radius:12px;touch-action:pan-y;z-index:1}
+ #kfm-list .kfm-swiping .kfm-inner,#kfm-list .kfm-swopen .kfm-inner{will-change:transform}
  #kfm-list .kfm-swa{position:absolute;top:0;right:0;bottom:0;width:96px;border:0;background:#1a73e8;color:#fff;display:flex;flex-direction:column;
    align-items:center;justify-content:center;gap:4px;font-size:12px;font-weight:700;padding:0 6px;z-index:0;text-align:center;line-height:1.2}
  #kfm-list .kfm-sent{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:8px;background:#e6f4ea;color:#1a7f37;font-size:11px;font-weight:700;vertical-align:middle}
@@ -762,7 +803,8 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  html.kfm-finder #kfm-ver{display:none}
  #kfm-badge{position:fixed;left:6px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:100000;background:rgba(26,127,55,.9);color:#fff;font:600 10px -apple-system,sans-serif;
    padding:3px 6px;border-radius:10px;transition:opacity .5s}
- #kfm-badge b{margin-left:6px;cursor:pointer}`;
+ #kfm-badge b{margin-left:6px;cursor:pointer}
+${SCROLL_CSS}`;
   const st = document.createElement('style'); st.id = 'kfm-main-css'; st.textContent = css + TM_CSS;
   (function mountCss() {
     const p = document.head || document.documentElement;
@@ -1750,7 +1792,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
       });
     });
   }
-  window.addEventListener('resize', () => refitPagerCount());
+  window.addEventListener('resize', () => { if (kfmWidthChanged('pg')) refitPagerCount(); });
   // v0.1.13: summary / 商品数の文字変化のたび再整形（body MO は characterData を見ていない）
   let sumWatchMO = null, sumWatchEl = null, sumWatchT = 0;
   // v0.1.14: 結果一覧表示中だけページャーを出す（フィルター画面の #grid-form-finder が display:none のとき）
@@ -1884,7 +1926,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const root = document.documentElement;
     if (!root) return;   // document-start で html 未準備のことがある
     if (on && !root.classList.contains('kfm-restoring')) posHideAt = Date.now();
-    root.classList.toggle('kfm-restoring', !!on);
+    kc(root, 'kfm-restoring', !!on);
   };
   const posPending = () => { const r = posGet(); return !!(r && r.hash === location.hash && (r.page > 1 || r.asin || r.y)); };
   if (document.documentElement && onFinder() && posPending()) posHide(true);
@@ -1935,7 +1977,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     setTimeout(schedule, 250);
   }
   function leaveFinder() {
-    ['kfm-sort', 'kfm-sheet', 'kfm-cols', 'kfm-ac-done'].forEach(i => { const e = document.getElementById(i); if (e && !(i === 'kfm-sheet' && onManage())) e.remove(); }); document.documentElement.classList.remove('kfm-cols-open');
+    ['kfm-sort', 'kfm-sheet', 'kfm-cols', 'kfm-ac-done'].forEach(i => { const e = document.getElementById(i); if (e && !(i === 'kfm-sheet' && onManage())) e.remove(); }); kc(document.documentElement, 'kfm-cols-open', false);
     const pg = document.getElementById('kfm-pager'); if (pg) pg.remove();
     document.querySelectorAll('.kfm-gridhost').forEach(w => w.classList.remove('kfm-gridhost'));
     const l = document.getElementById('kfm-list'); if (l) l.remove();
@@ -2228,7 +2270,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   }
   function openColSheet(cc) {
     if (document.getElementById('kfm-cols') || colsSuppress) return;
-    document.documentElement.classList.add('kfm-cols-open');
+    kc(document.documentElement, 'kfm-cols-open', true);
     const groups = readNativeColGroups(cc);
     const sh = el('div'); sh.id = 'kfm-cols';
     const box = el('div', 'kfm-cols-sh'); sh.appendChild(box);
@@ -2314,7 +2356,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const close = () => {
       colsSuppress = true;
       sh.remove();
-      document.documentElement.classList.remove('kfm-cols-open');
+      kc(document.documentElement, 'kfm-cols-open', false);
       syncCloseNativeCol();
       // Keepa が再度 block に戻しても、閉じるまで待つ
       let n = 0;
@@ -2338,17 +2380,17 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   function colSheetTick() {
     if (!mq.matches) {
       const s = document.getElementById('kfm-cols'); if (s) s.remove();
-      document.documentElement.classList.remove('kfm-cols-open');
+      kc(document.documentElement, 'kfm-cols-open', false);
       colsSuppress = false; return;
     }
     if (colsSuppress) return;
     const cc = colPanelWanted();
     if (cc) {
-      document.documentElement.classList.add('kfm-cols-open'); // フラッシュ防止（シート前でも）
+      kc(document.documentElement, 'kfm-cols-open', true); // フラッシュ防止（シート前でも）
       openColSheet(cc);
     } else {
       const s = document.getElementById('kfm-cols');
-      if (s) { s.remove(); document.documentElement.classList.remove('kfm-cols-open'); }
+      if (s) { s.remove(); kc(document.documentElement, 'kfm-cols-open', false); }
     }
   }
   // 列を設定タップ直後にクラスを付けてフラッシュを防ぐ
@@ -2357,7 +2399,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const tr = e.target.closest && e.target.closest('.tool__column .trigger, .tool__column');
     if (!tr) return;
     colsSuppress = false;
-    document.documentElement.classList.add('kfm-cols-open');
+    kc(document.documentElement, 'kfm-cols-open', true);
     setTimeout(() => { try { colSheetTick(); } catch (err) {} }, 0);
   }, true);
 
@@ -2388,12 +2430,12 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   }
   function acMarkMenu(menu, wrap) {
     if (!menu) return;
-    menu.classList.add('kfm-ac-multi');
+    kc(menu, 'kfm-ac-multi', true);
     const sel = acSelectedNames(wrap);
     menu.querySelectorAll('li.ui-menu-item').forEach(li => {
-      if (li.classList.contains('ui-item-select-all')) { li.classList.remove('kfm-ac-on'); return; }
+      if (li.classList.contains('ui-item-select-all')) { kc(li, 'kfm-ac-on', false); return; }
       const info = acItemName(li);
-      li.classList.toggle('kfm-ac-on', sel.has(info.name.toLowerCase()));
+      kc(li, 'kfm-ac-on', sel.has(info.name.toLowerCase()));
     });
   }
   function acEnsureDone(inp) {
@@ -2407,16 +2449,16 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
       });
       bar.appendChild(b); document.body.appendChild(bar);
     }
-    bar.classList.add('kfm-ac-done-on');
-    bar.style.display = 'block';
+    kc(bar, 'kfm-ac-done-on', true);
+    if (bar.style.display !== 'block') bar.style.display = 'block';
     bar._inp = inp;
-    document.documentElement.classList.add('kfm-ac-open');
+    kc(document.documentElement, 'kfm-ac-open', true);
   }
   function acHideDone() {
     const bar = document.getElementById('kfm-ac-done');
-    if (bar) { bar.classList.remove('kfm-ac-done-on'); bar.style.display = 'none'; bar._inp = null; }
+    if (bar) { kc(bar, 'kfm-ac-done-on', false); if (bar.style.display !== 'none') bar.style.display = 'none'; bar._inp = null; }
     const was = document.documentElement.classList.contains('kfm-ac-open');
-    document.documentElement.classList.remove('kfm-ac-open');
+    kc(document.documentElement, 'kfm-ac-open', false);
     if (was) refitPagerCount();
   }
   function acClose(inp) {
@@ -2492,7 +2534,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
       ? document.activeElement
       : document.querySelector('.ui-autocomplete-input[aria-expanded="true"]');
     const wrap = acWrap(inp);
-    if (!wrap) { menu.classList.remove('kfm-ac-multi'); acHideDone(); return; }
+    if (!wrap) { kc(menu, 'kfm-ac-multi', false); acHideDone(); return; }
     acMarkMenu(menu, wrap);
     acEnsureDone(inp);
   }
@@ -2508,6 +2550,64 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     }).observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'aria-expanded'] });
   })();
 
+
+  // ---- v0.1.17: キーボード対応 ----
+  // iOS Safari はキーボードが出ても画面下固定の要素を動かさない（キーボードの裏に隠れる・入力欄に重なる）。
+  // 見えている範囲（visualViewport）を測って、下のバー・シート・候補リストをキーボードの上に合わせる
+  (function kbWatch() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    let raf = 0, last = '';
+    const H = () => document.documentElement;
+    const field = () => { const a = document.activeElement; return a && a !== document.body && (/^(INPUT|TEXTAREA)$/.test(a.tagName) && !/^(checkbox|radio|button|submit|range|color|file)$/i.test(a.type || '') || a.isContentEditable) ? a : null; };
+    function apply() {
+      raf = 0;
+      const h = H(); if (!h) return;
+      const f = field();
+      const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      const on = !!f && mq.matches && vv.scale < 1.05 && kb > 120;
+      const was = h.classList.contains('kfm-kb');
+      kc(h, 'kfm-kb', on);
+      if (on && !was) liftSoon();
+      document.querySelectorAll('.kfm-kb-host').forEach(b => { if (!on || !b.contains(f)) b.classList.remove('kfm-kb-host'); });
+      if (!on) { if (last) { ['--kfm-kb', '--kfm-vvtop', '--kfm-vvh', '--kfm-acmax'].forEach(k => h.style.removeProperty(k)); last = ''; } return; }
+      const bb = f.closest('.kfm-bottombar'); if (bb) kc(bb, 'kfm-kb-host', true);
+      // 候補リストは入力欄の下〜キーボード（と完了ボタン）の上に収める
+      const r = f.getBoundingClientRect();
+      const visBottom = vv.offsetTop + vv.height;
+      const acmax = Math.max(120, Math.round(visBottom - 64 - 8 - Math.max(r.bottom, vv.offsetTop)));
+      const key = [kb, Math.round(vv.offsetTop), Math.round(vv.height), acmax].join('|');
+      if (key === last) return;
+      last = key;
+      h.style.setProperty('--kfm-kb', kb + 'px');
+      h.style.setProperty('--kfm-vvtop', Math.round(vv.offsetTop) + 'px');
+      h.style.setProperty('--kfm-vvh', Math.round(vv.height) + 'px');
+      h.style.setProperty('--kfm-acmax', acmax + 'px');
+    }
+    const soon = () => { if (!raf) raf = requestAnimationFrame(apply); };
+    vv.addEventListener('resize', soon, { passive: true });
+    vv.addEventListener('scroll', () => { if (H() && H().classList.contains('kfm-kb')) soon(); }, { passive: true });
+    document.addEventListener('focusin', () => { soon(); setTimeout(soon, 350); setTimeout(soon, 700); }, true);
+    document.addEventListener('focusout', () => setTimeout(soon, 50), true);
+    // 候補リストが入力欄の上に重ならないよう、狭いときは入力欄を見える範囲の上の方へ寄せる（キーボードが出きってから）
+    function liftInput(t) {
+      if (!t || !t.classList || !t.classList.contains('ui-autocomplete-input') || t.closest('.kfm-bottombar,#kfm-cols,#kfm-sheet,#kfm-tm,#kfm-tm-sheet')) return;
+      if (document.activeElement !== t || !H().classList.contains('kfm-kb')) return;
+      const r = t.getBoundingClientRect(), room = vv.offsetTop + vv.height - 72 - r.bottom;
+      if (room >= 200) return;
+      let hb = 0;   // 上の固定ヘッダー（Keepa のロゴ・タブ）の下に入力欄が来るように
+      for (let y = vv.offsetTop + 2; y < vv.offsetTop + 220; y += 6) {
+        let e = document.elementFromPoint(12, y), fixed = false;
+        while (e && e !== document.body) { const p = getComputedStyle(e).position; if (p === 'fixed' || p === 'sticky') { fixed = true; break; } e = e.parentElement; }
+        if (!fixed || (e && (e.contains(t) || e.matches('.ui-autocomplete,#kfm-ac-done')))) break; hb = y - vv.offsetTop;
+      }
+      window.scrollBy(0, Math.round(r.top - vv.offsetTop - hb - 12));
+      soon();
+    }
+    let liftT = 0;
+    const liftSoon = () => { clearTimeout(liftT); liftT = setTimeout(() => liftInput(document.activeElement), 250); };
+    document.addEventListener('focusin', () => { if (H().classList.contains('kfm-kb')) liftSoon(); }, true);
+  })();
   // ---------- loop ----------
   let timer = 0, busy = false;
   const isTyping = () => {
@@ -2663,7 +2763,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     if (!trackOn || ownSheetOpen()) return;
     const H = document.documentElement;
     if (!onFinder()) ['kfm-sheet', 'kfm-ask'].forEach(i => { const e = document.getElementById(i); if (e) e.remove(); });   // 製品ファインダーから持ち越した画面
-    H.classList.remove('kfm-tm-on');
+    kc(H, 'kfm-tm-on', false);
     [H, document.body].forEach(e => { if (!e) return; ['overflow', 'overflow-y', 'position', 'touch-action', 'height', 'top'].forEach(pr => { if (e.style.getPropertyValue(pr)) e.style.removeProperty(pr); }); });
   }
   let trkNudgeAt = 0;
@@ -2697,7 +2797,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const on = isMobile() && trackVisible();
     if (on) trackDecorate();
     if (on !== trackOn) {
-      trackOn = on; document.documentElement.classList.toggle('kfm-track', on);
+      trackOn = on; kc(document.documentElement, 'kfm-track', on);
       setViewport();
       if (on) { trackUnlock(); trackWatch(); [0, 120, 400, 1000, 2000].forEach(t => setTimeout(trackNudge, t)); }
       if (!on) { [300, 1200].forEach(t => setTimeout(measureProduct, t)); }
@@ -2799,7 +2899,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   }
   async function tmCollect(onProg) {
     const root = tmRoot(); if (!root) throw new Error('Keepaの一覧が見つかりません');
-    root.classList.add('kfm-tm-grid');   // 見えないが実寸で描画させる（display:none にしない）
+    kc(root, 'kfm-tm-grid', true);   // 見えないが実寸で描画させる（display:none にしない）
     await tmFrame(); await sleep(300);
     const vp = tmViewport(root); const map = new Map(); tm.src = {};
     const total = tmTotal(); let lastNew = Date.now(), guard = 0, atEnd = 0;
@@ -2943,11 +3043,11 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   }
   function tmAuto() {   // v0.0.33: #!manage を開いたら最初からスマホ用一覧を出す
     if (!isMobile() || !document.body) return;
-    document.documentElement.classList.add('kfm-manage');
+    kc(document.documentElement, 'kfm-manage', true);
     tmEntry();
     if (!tm.orig && !document.getElementById('kfm-tm') && tmRoot()) tmOpen();
   }
-  function tmLeave() { if (tm.running) return; tm.orig = false; document.documentElement.classList.remove('kfm-manage'); const gr = document.querySelector('.kfm-tm-grid'); if (gr) gr.classList.remove('kfm-tm-grid'); ['kfm-tm-fab', 'kfm-tm', 'kfm-tm-sheet'].forEach(i => { const e = document.getElementById(i); if (e) e.remove(); }); document.documentElement.classList.remove('kfm-tm-on'); }
+  function tmLeave() { if (tm.running) return; tm.orig = false; kc(document.documentElement, 'kfm-manage', false); const gr = document.querySelector('.kfm-tm-grid'); if (gr) gr.classList.remove('kfm-tm-grid'); ['kfm-tm-fab', 'kfm-tm', 'kfm-tm-sheet'].forEach(i => { const e = document.getElementById(i); if (e) e.remove(); }); kc(document.documentElement, 'kfm-tm-on', false); }
   function tmFiltered() {
     const q = tm.q.toLowerCase();
     return q ? tm.items.filter(i => i.asin.toLowerCase().includes(q) || i.title.toLowerCase().includes(q)) : tm.items;
@@ -3006,14 +3106,14 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
   function tmOpen() {
     tm.orig = false;
     if (document.getElementById('kfm-tm')) return;
-    document.documentElement.classList.add('kfm-tm-on');
+    kc(document.documentElement, 'kfm-tm-on', true);
     const ov = el('div'); ov.id = 'kfm-tm';
     ov.innerHTML = '<div class="kfm-tm-head"><div class="kfm-tm-h"><span class="kfm-tm-ic">' + ICON_BROOM + '</span><div class="kfm-tm-hh"><b>トラッキング整理</b><span class="kfm-tm-tot"></span></div><button type="button" class="kfm-tm-set" aria-label="設定">' + ICON_GEAR + '</button><button type="button" class="kfm-tm-close" aria-label="Keepaの元の画面を表示">' + ICON_MONITOR + '<span>元の画面</span></button></div>' +
       '<div class="kfm-tm-tools"><label class="kfm-tm-all"><input type="checkbox"><span>全て</span></label><input type="search" class="kfm-tm-q" placeholder="商品名・ASINでしぼる" enterkeyhint="search"><button type="button" class="kfm-tm-reload" aria-label="読み込み直す">' + ICON_RELOAD + '</button></div>' +
       '<div class="kfm-tm-sub"><span class="kfm-tm-prac" hidden>練習モード中</span><div class="kfm-tm-cnt"></div><button type="button" class="kfm-tm-ver" aria-label="診断情報"></button></div><pre class="kfm-tm-dbg" hidden></pre></div><div class="kfm-tm-list"></div>' +
       '<div class="kfm-tm-bar"><button type="button" class="kfm-tm-go">' + ICON_TRASH_W + '<span></span></button></div>';
     document.body.appendChild(ov);
-    ov.querySelector('.kfm-tm-close').addEventListener('click', () => { if (!tm.running) { tm.orig = true; const gr = document.querySelector('.kfm-tm-grid'); if (gr) gr.classList.remove('kfm-tm-grid'); ov.remove(); document.documentElement.classList.remove('kfm-tm-on'); } });
+    ov.querySelector('.kfm-tm-close').addEventListener('click', () => { if (!tm.running) { tm.orig = true; const gr = document.querySelector('.kfm-tm-grid'); if (gr) gr.classList.remove('kfm-tm-grid'); ov.remove(); kc(document.documentElement, 'kfm-tm-on', false); } });
     const vb = ov.querySelector('.kfm-tm-ver'); vb.textContent = VERSION;
     vb.addEventListener('click', () => { const d = ov.querySelector('.kfm-tm-dbg'); d.hidden = !d.hidden; if (!d.hidden) d.textContent = tmDbg(); });
     ov.querySelector('.kfm-tm-reload').addEventListener('click', () => { if (!tm.running) tmLoad(); });
@@ -3078,9 +3178,9 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     kfmCleanup();   // 入力中はDOMを一切触らない
     const on = mq.matches;
     const H = document.documentElement;
-    H.classList.toggle('kfm', on);
-    H.classList.toggle('kfm-finder', on && onFinder());
-    H.classList.toggle('kfm-product', on && onProduct());
+    kc(H, 'kfm', on);
+    kc(H, 'kfm-finder', on && onFinder());
+    kc(H, 'kfm-product', on && onProduct());
     if (!onFinder()) leaveFinder();
     if (!onProduct()) leaveProduct();
     if (onManage()) tmAuto(); else tmLeave();
@@ -3100,15 +3200,15 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     if (!onManage()) {
       if (tm.running) tm.stop = true;
       if (!tm.running) { [ov, sheet, document.getElementById('kfm-tm-fab')].forEach(e => e && e.remove()); }
-      H.classList.remove('kfm-manage');
+      kc(H, 'kfm-manage', false);
       document.querySelectorAll('.kfm-tm-grid').forEach(g => g.classList.remove('kfm-tm-grid'));
     }
     if (!document.getElementById('kfm-tm')) {
-      H.classList.remove('kfm-tm-on');
+      kc(H, 'kfm-tm-on', false);
       if (onManage()) document.querySelectorAll('.kfm-tm-grid').forEach(g => g.classList.remove('kfm-tm-grid'));
     }
     if (sheet && !document.getElementById('kfm-tm') && !tm.running) sheet.remove();
-    if (!onProduct() && H.classList.contains('kfm-track')) { trackOn = false; H.classList.remove('kfm-track'); const b = document.getElementById('kfm-trackbar'); if (b) b.remove(); }
+    if (!onProduct() && H.classList.contains('kfm-track')) { trackOn = false; kc(H, 'kfm-track', false); const b = document.getElementById('kfm-trackbar'); if (b) b.remove(); }
     [H, document.body].forEach(e => { if (!e) return; ['overflow', 'overflow-y', 'position', 'touch-action', 'height'].forEach(pr => { if (e.style.getPropertyValue(pr)) e.style.removeProperty(pr); }); });
   }
   window.addEventListener('hashchange', () => { kfmCleanup(); setTimeout(kfmCleanup, 300); });
@@ -3121,8 +3221,8 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const H = document.documentElement, r = routeName();
     [...H.classList].forEach(c => { if (c.indexOf('kfm-route-') === 0 && c !== 'kfm-route-' + r) H.classList.remove(c); });
     const on = isMobile() && KFM_ROUTES.indexOf(r) >= 0;
-    H.classList.toggle('kfm-tabs', on);
-    H.classList.toggle('kfm-route-' + r, on && !!r);
+    kc(H, 'kfm-tabs', on);
+    kc(H, 'kfm-route-' + r, on && !!r);
   }
   const T = 'html.kfm-tabs';
   const R = n => 'html.kfm-route-' + n;
@@ -3202,17 +3302,17 @@ ${R('categorytree')} #grid-tools-categorytree .content-column{max-width:calc(100
     };
     add(); applyRoute();
     window.addEventListener('hashchange', applyRoute);
-    window.addEventListener('resize', applyRoute);
+    window.addEventListener('resize', () => { if (kfmWidthChanged('rt')) applyRoute(); });
     document.addEventListener('DOMContentLoaded', () => { add(); applyRoute(); });
   })();
   // ==KFM-TABS-END==
   function start() {
     new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
     window.addEventListener('hashchange', schedule);
-    window.addEventListener('resize', schedule);
+    window.addEventListener('resize', () => { if (kfmWidthChanged('sc')) schedule(); });
     document.addEventListener('focusout', () => setTimeout(schedule, 300), true);
     run();
   }
-  document.documentElement.classList.toggle('kfm', isMobile());
+  kc(document.documentElement, 'kfm', isMobile());
   if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
 })();
