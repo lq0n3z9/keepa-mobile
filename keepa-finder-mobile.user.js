@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.11
+// @version      0.1.12
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -81,7 +81,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.11';
+  const VERSION = 'v0.1.12';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -230,7 +230,7 @@
    background:#fff;border-top:1px solid #e3e5e8;box-shadow:0 -2px 8px rgba(0,0,0,.08);padding:8px 10px;box-sizing:border-box;
    font-family:-apple-system,BlinkMacSystemFont,sans-serif;-webkit-tap-highlight-color:transparent}
  #kfm-pager.kfm-pg-solo{padding-bottom:calc(8px + env(safe-area-inset-bottom))}
- #kfm-pager .kfm-pg-info{display:flex;flex-direction:column;min-width:78px;font-size:12px;color:#777;line-height:1.3}
+ #kfm-pager .kfm-pg-info{display:flex;flex-direction:column;min-width:0;font-size:12px;color:#777;line-height:1.3}
  #kfm-pager .kfm-pg-ver{font-size:9px;color:#c4c4c4;pointer-events:auto;cursor:pointer;padding:2px 0}
 #kfm-pager .kfm-pg-ver.kfm-ovf{}
 /* v0.0.21: finder ではページ全体の横はみ出しを禁止（clip はスクロール領域を作らないので候補リストを壊さない） */
@@ -461,24 +461,32 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-pager.kfm-hand-left{flex-direction:row-reverse}
  #kfm-pager{gap:4px;padding-left:8px;padding-right:8px}
  #kfm-pager .kfm-pg-ver,#kfm-pager .kfm-pg-num{display:none!important}
- #kfm-pager .kfm-pg-info{flex:1 0 auto;min-width:max-content;overflow:visible}
+ #kfm-pager .kfm-pg-info{flex:1 1 64px;min-width:0;overflow:hidden}
  #kfm-pager .kfm-pg-info>span{overflow:visible;text-overflow:clip}
  #kfm-pager .kfm-pg-sum{display:flex;flex-direction:column;font-size:12px;line-height:1.25;color:#555;font-variant-numeric:tabular-nums}
  #kfm-pager .kfm-pg-set,#kfm-pager .kfm-pg-trk,#kfm-pager .kfm-pg-list{width:30px;height:30px}
  #kfm-pager .kfm-pg-ctl{gap:2px}
- #kfm-pager .kfm-pg-icons{display:flex;align-items:center;gap:4px;flex:0 0 auto;flex-direction:row!important;margin:0 14px 0 0}
- #kfm-pager.kfm-hand-left .kfm-pg-icons{margin:0 0 0 14px}
+ #kfm-pager .kfm-pg-icons{display:flex;align-items:center;gap:0;flex:0 0 auto;flex-direction:row!important;margin:0 4px 0 0}
+ #kfm-pager.kfm-hand-left .kfm-pg-icons{margin:0 0 0 4px}
  #kfm-pager .kfm-pg-icons>button{box-sizing:border-box!important;width:32px!important;height:32px!important;min-width:32px!important;padding:0!important;margin:0!important;border:0!important;border-radius:50%;background:transparent!important;color:#888!important;display:inline-flex!important;align-items:center;justify-content:center;flex:0 0 32px}
  #kfm-pager .kfm-pg-icons svg{width:18px!important;height:18px!important;display:block;flex:0 0 18px}
  #kfm-pager .kfm-pg-ctl{margin-left:0}
  #kfm-pager.kfm-hand-left .kfm-pg-ctl{margin-right:0}
  #kfm-pager .kfm-pg-info{margin-right:auto}
  #kfm-pager.kfm-hand-left .kfm-pg-info{margin-right:0;margin-left:auto}
-/* v0.1.5: Liquid Glass 風の浮いたカプセル（案A） */
- #kfm-pager{left:10px!important;right:10px!important;border-radius:999px;border:0!important;padding:6px 4px 6px 12px!important;min-height:60px;isolation:isolate;
-   background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(255,255,255,.82))!important;
-   -webkit-backdrop-filter:blur(18px) saturate(120%);backdrop-filter:blur(18px) saturate(120%);
-   box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 0 0 1px rgba(255,255,255,.55),inset 0 -1px 1px rgba(0,0,0,.05),0 8px 24px rgba(20,30,60,.18),0 1px 3px rgba(0,0,0,.08)!important}
+/* v0.1.12: Liquid Glass 案A（iOS Safari）。ガラスは ::after に置き、本体は overflow で矢印を胶囊内に収める */
+ #kfm-pager{position:fixed;left:8px!important;right:8px!important;width:auto!important;max-width:calc(100vw - 16px)!important;
+   border-radius:999px;border:0!important;padding:6px 10px 6px 12px!important;min-height:60px;
+   gap:2px!important;box-sizing:border-box!important;overflow:visible!important;
+   background:transparent!important;
+   -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
+   box-shadow:none!important;transform:none!important;-webkit-transform:none!important;z-index:9998;
+   display:flex;align-items:center}
+ #kfm-pager::after{content:'';position:absolute;inset:0;border-radius:inherit;z-index:-1;pointer-events:none;
+   background:rgba(255,255,255,.55)!important;
+   -webkit-backdrop-filter:blur(20px) saturate(180%)!important;backdrop-filter:blur(20px) saturate(180%)!important;
+   -webkit-box-shadow:inset 0 0 0 1px rgba(255,255,255,.75),0 8px 24px rgba(20,30,60,.16),0 1px 3px rgba(0,0,0,.08);
+   box-shadow:inset 0 0 0 1px rgba(255,255,255,.75),0 8px 24px rgba(20,30,60,.16),0 1px 3px rgba(0,0,0,.08)}
  #kfm-pager::before{display:none!important;content:none!important;background:none!important}
  #kfm-pager button:focus,#kfm-pager button:focus-visible,#kfm-pager button:active{
    outline:none!important;box-shadow:inset 0 1px 0 #fff,inset 0 0 0 .5px rgba(255,255,255,.8),0 2px 6px rgba(20,30,60,.15)!important;
@@ -486,28 +494,25 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-pager .kfm-pg-icons>button:focus,#kfm-pager .kfm-pg-icons>button:focus-visible,#kfm-pager .kfm-pg-icons>button:active{
    outline:none!important;box-shadow:none!important;background:transparent!important}
  #kfm-pager.kfm-pg-solo{padding-bottom:6px!important}
- #kfm-pager.kfm-hand-left{padding:6px 12px 6px 4px!important}
-/* v0.1.11: 件数は2行用に最低幅を確保（アイコン/矢印は縮めない） */
- #kfm-pager .kfm-pg-info{flex:1 1 auto!important;min-width:78px!important;max-width:none!important;overflow:visible!important}
- #kfm-pager .kfm-pg-icons{margin:0 8px 0 0!important;gap:2px!important}
- #kfm-pager.kfm-hand-left .kfm-pg-icons{margin:0 0 0 8px!important}
- #kfm-pager .kfm-pg-ctl{gap:1px!important}
- #kfm-pager .kfm-pg-sum>span{display:block;white-space:nowrap;overflow:visible!important;text-overflow:clip!important}
- #kfm-pager .kfm-pg-sum{color:#333}
+ #kfm-pager.kfm-hand-left{padding:6px 12px 6px 10px!important}
+/* v0.1.12: 件数は flex・基準〜64px。狭い幅では縮めてはみ出し防止。アイコン/矢印は固定 */
+ #kfm-pager .kfm-pg-info{flex:1 1 64px!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;box-sizing:border-box!important}
+ #kfm-pager .kfm-pg-icons{margin:0 2px 0 0!important;gap:0!important;flex:0 0 auto!important;flex-shrink:0!important}
+ #kfm-pager.kfm-hand-left .kfm-pg-icons{margin:0 0 0 2px!important}
+ #kfm-pager .kfm-pg-ctl{gap:0!important;flex:0 0 auto!important;flex-shrink:0!important;margin-left:0!important}
+ #kfm-pager.kfm-hand-left .kfm-pg-ctl{margin-right:0!important}
+ #kfm-pager .kfm-pg-sum{display:flex!important;flex-direction:column!important;white-space:normal!important;overflow:hidden!important;text-overflow:clip;min-width:0;max-width:100%;color:#333;box-sizing:border-box}
+ #kfm-pager .kfm-pg-sum>span{display:block!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:clip!important;max-width:100%}
  #kfm-pager .kfm-pg-sum>span:first-child{font-weight:700;color:#111}
  #kfm-pager .kfm-pg-icons>button{color:#555!important}
- #kfm-pager .kfm-pg-ctl button{width:44px;height:44px;border-radius:50%;color:#1c1c1e;font-weight:600;
-   background:linear-gradient(180deg,rgba(255,255,255,.78),rgba(255,255,255,.38));box-shadow:inset 0 1px 0 #fff,inset 0 0 0 .5px rgba(255,255,255,.8),0 2px 6px rgba(20,30,60,.15)}
+ #kfm-pager .kfm-pg-ctl button{width:44px;height:44px;border-radius:50%;color:#1c1c1e;font-weight:600;flex:0 0 44px;box-sizing:border-box;
+   background:linear-gradient(180deg,rgba(255,255,255,.78),rgba(255,255,255,.38));box-shadow:inset 0 1px 0 #fff,inset 0 0 0 .5px rgba(255,255,255,.8),0 1px 3px rgba(20,30,60,.12)}
  #kfm-pager .kfm-pg-ctl button:disabled{opacity:.35;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.6)}
  @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
-   #kfm-pager{background:#f7f8fa!important;box-shadow:0 0 0 1px #e1e4e8,0 6px 18px rgba(20,30,60,.18)!important}
+   #kfm-pager::after{background:rgba(255,255,255,.82)!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
    #kfm-pager::before{display:none}
-   #kfm-pager .kfm-pg-ctl button{background:#fff;box-shadow:0 0 0 1px #e1e4e8}}
-/* v0.1.11: 件数を押し潰さない。アイコン/矢印は固定幅のまま */
+   #kfm-pager .kfm-pg-ctl button{background:rgba(255,255,255,.9);box-shadow:0 0 0 1px rgba(255,255,255,.8)}}
  #kfm-pager .kfm-pg-ctl,#kfm-pager .kfm-pg-icons{flex-shrink:0!important}
- #kfm-pager .kfm-pg-info{flex:1 1 auto!important;min-width:78px!important;overflow:visible!important}
- #kfm-pager .kfm-pg-sum{display:flex!important;flex-direction:column!important;white-space:normal!important;overflow:visible!important;text-overflow:clip;min-width:0}
- #kfm-pager .kfm-pg-sum>span{display:block!important;white-space:nowrap!important;overflow:visible!important;text-overflow:clip!important}
  html.kfm-restoring #kfm-list>*{visibility:hidden}
  html.kfm-restoring #kfm-list{min-height:60vh;position:relative}
  html.kfm-restoring #kfm-list::before{content:'前の位置に戻しています…';position:absolute;left:0;right:0;top:40px;text-align:center;color:#888;font-size:14px;visibility:visible}
@@ -1625,15 +1630,20 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     return r.width > 40 && r.height > 20;
   }
   function fitCount(se, n) {
-    if (!se || !n || n.length < 3) return;
+    if (!se || !n || n.length < 2) return;
     const pg = se.closest('#kfm-pager');
     const box = se.parentElement || se;
     if (!pagerVisible() || !box.clientWidth) return;   // 隠れたまま測ると3行に落ちる
+    const a = String(n[0]).replace(/,/g, ''), b = String(n[1]).replace(/,/g, '');
+    const rawTot = n.length >= 3 ? String(n[2]).replace(/,/g, '') : '';
+    const isMore = !rawTot || /^more$/i.test(rawTot);
+    const tot = isMore ? 'more' : rawTot;
     const fits = () => [...se.children].every(c => c.scrollWidth <= box.clientWidth + 0.5)
       && se.scrollHeight <= (pg || box).clientHeight + 0.5;
     const set = (...a) => { se.textContent = ''; a.forEach(txt => se.appendChild(el('span', null, txt))); };
-    // v0.1.11: 2行（11–12px）を最優先。どうしても入らなければ10pxの2行、最後に3行
-    const two = [[`${n[0]}–${n[1]}`, `/ ${n[2]}件`], [`${n[0]}–${n[1]}`, `/${n[2]}件`]];
+    // v0.1.12: 2行を ≥11px 優先。件数不明は "/ more"。狭い幅は 10→9px、最後に3行
+    const line2 = isMore ? ['/ more', '/more'] : [`/ ${tot}件`, `/${tot}件`];
+    const two = [[`${a}–${b}`, line2[0]], [`${a}–${b}`, line2[1]]];
     for (const row of two) {
       set(...row);
       for (let f = 12; f >= 11; f -= 0.5) {
@@ -1643,14 +1653,21 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     }
     for (const row of two) {
       set(...row);
-      for (let f = 10.5; f >= 10; f -= 0.5) {
+      for (let f = 10.5; f >= 9; f -= 0.5) {
         se.style.fontSize = f + 'px'; se.style.lineHeight = '1.2';
         if (fits()) return;
       }
     }
-    // 最後の手段の3行
-    set(`${n[0]}–`, n[1], `/${n[2]}件`);
-    for (let f = 11; f >= 9; f -= 0.5) {
+    if (isMore) {
+      set(`${a}–${b}`, '/ more');
+      for (let f = 11; f >= 8.5; f -= 0.5) {
+        se.style.fontSize = f + 'px'; se.style.lineHeight = '1.15';
+        if (fits()) return;
+      }
+      return;
+    }
+    set(`${a}–`, b, `/${tot}件`);
+    for (let f = 11; f >= 8.5; f -= 0.5) {
       se.style.fontSize = f + 'px'; se.style.lineHeight = '1.1';
       if (fits()) return;
     }
@@ -1695,10 +1712,18 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
       }));
     }
     const sumEl = panel.querySelector('.ag-paging-row-summary-panel');
-    const nums = (sumEl ? norm(sumEl.textContent) : '').match(/[\d,]+/g) || [];
-    { const se = pg.querySelector('.kfm-pg-sum'); const k = nums.length >= 3 ? nums[0] + '|' + nums[1] + '|' + nums[2] : '';
-      if (k) { se.dataset.k = k; fitCount(se, nums.map(n => n.replace(/,/g, ''))); }
-      else { delete se.dataset.k; se.textContent = sumEl ? norm(sumEl.textContent) : ''; } }
+    const rawSum = sumEl ? norm(sumEl.textContent) : '';
+    const nums = rawSum.match(/[\d,]+/g) || [];
+    const isMoreTot = /\bmore\b/i.test(rawSum) || /以上/.test(rawSum);
+    { const se = pg.querySelector('.kfm-pg-sum');
+      if (nums.length >= 3) {
+        const parts = nums.slice(0, 3).map(n => n.replace(/,/g, ''));
+        se.dataset.k = parts.join('|'); fitCount(se, parts);
+      } else if (nums.length >= 2) {
+        // フィルター画面など: "1 から 100 / more" → 1–100 / more
+        const parts = [nums[0].replace(/,/g, ''), nums[1].replace(/,/g, ''), isMoreTot || nums.length < 3 ? 'more' : ''];
+        se.dataset.k = parts.join('|'); fitCount(se, parts);
+      } else { delete se.dataset.k; se.textContent = rawSum; } }
     const desc = panel.querySelector('.ag-paging-description');
     const pn = (desc ? norm(desc.textContent) : norm(panel.textContent)).match(/(\d[\d,]*)\s*\/\s*(\d[\d,]*)\s*$/) ||
       (desc ? norm(desc.textContent) : '').match(/(\d[\d,]*)\D+(\d[\d,]*)/);
