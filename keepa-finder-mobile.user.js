@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.10
+// @version      0.1.11
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -57,6 +57,7 @@
   function setViewport() {
     if (!isMobile()) return;
     const head = document.head || document.documentElement;
+    if (!head) return; // document-start では head がまだ無いことがある
     let m = document.querySelector('meta[name="viewport"]');
     if (!m) { m = document.createElement('meta'); m.name = 'viewport'; head.appendChild(m); }
     // #!product: 画面幅に合わせ、ピンチで自由に拡大縮小。それ以外（#!finder 等）: 入力時の自動ズームを防ぐ固定倍率
@@ -67,12 +68,20 @@
       : 'width=device-width, initial-scale=1, maximum-scale=1';
     if (m.getAttribute('content') !== want) m.setAttribute('content', want);
   }
-  setViewport();
+  function armViewportWatch() {
+    setViewport();
+    const root = document.documentElement;
+    if (!root || typeof root.nodeType !== 'number') return;
+    try {
+      new MutationObserver(() => { if (isMobile()) setViewport(); })
+        .observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['content'] });
+    } catch (e) { /* document-start で Node 未準備のことがある */ }
+  }
   window.addEventListener('hashchange', () => { setViewport(); [600, 1500, 3000].forEach(t => setTimeout(measureProduct, t)); });
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
-  new MutationObserver(() => { if (isMobile()) setViewport(); })
-    .observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['content'] });
-  const VERSION = 'v0.1.10';
+  if (document.documentElement) armViewportWatch();
+  else document.addEventListener('DOMContentLoaded', armViewportWatch);
+  const VERSION = 'v0.1.11';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -221,23 +230,54 @@
    background:#fff;border-top:1px solid #e3e5e8;box-shadow:0 -2px 8px rgba(0,0,0,.08);padding:8px 10px;box-sizing:border-box;
    font-family:-apple-system,BlinkMacSystemFont,sans-serif;-webkit-tap-highlight-color:transparent}
  #kfm-pager.kfm-pg-solo{padding-bottom:calc(8px + env(safe-area-inset-bottom))}
- #kfm-pager .kfm-pg-info{display:flex;flex-direction:column;min-width:0;font-size:12px;color:#777;line-height:1.3}
+ #kfm-pager .kfm-pg-info{display:flex;flex-direction:column;min-width:78px;font-size:12px;color:#777;line-height:1.3}
  #kfm-pager .kfm-pg-ver{font-size:9px;color:#c4c4c4;pointer-events:auto;cursor:pointer;padding:2px 0}
 #kfm-pager .kfm-pg-ver.kfm-ovf{}
 /* v0.0.21: finder ではページ全体の横はみ出しを禁止（clip はスクロール領域を作らないので候補リストを壊さない） */
 html.kfm.kfm-finder,html.kfm.kfm-finder body{width:100%!important;max-width:100%!important;min-width:0!important;overflow-x:clip!important}
 @supports not (overflow:clip){html.kfm.kfm-finder,html.kfm.kfm-finder body{overflow-x:hidden!important}}
-html.kfm.kfm-finder .kfm-toolbar,html.kfm.kfm-finder .grid-wrapper-tools>div:first-child{
-  display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:6px!important;
-  width:100%!important;max-width:100%!important;min-width:0!important;overflow:visible!important;box-sizing:border-box!important;
-  float:none!important;align-items:stretch}
-html.kfm.kfm-finder .kfm-toolbar>*,html.kfm.kfm-finder .grid-wrapper-tools>div:first-child>span{
-  min-width:0!important;max-width:100%!important;width:auto!important;flex:unset!important;float:none!important;position:static!important;
-  white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box}
-html.kfm.kfm-finder .kfm-toolbar .trigger,html.kfm.kfm-finder .grid-wrapper-tools .trigger{
-  display:inline-flex!important;align-items:center;justify-content:center;gap:4px;width:100%!important;min-height:40px;
-  padding:6px 4px!important;font-size:12px!important;box-sizing:border-box;margin:0!important}
-html.kfm.kfm-finder .kfm-toolbar-anc{width:auto!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+/* v0.1.11: 結果領域を viewport 幅に拘束し、ツールバーだけ 4 列 */
+html.kfm.kfm-finder #contentAlign{
+  margin-left:0!important;margin-right:0!important;width:100%!important;max-width:100%!important;
+  min-width:0!important;box-sizing:border-box!important;padding:0!important}
+html.kfm.kfm-finder #content,html.kfm.kfm-finder #bodyPanel,html.kfm.kfm-finder .content,
+html.kfm.kfm-finder .data-container,html.kfm.kfm-finder .data-container.asin{
+  width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;
+  overflow-x:clip!important;float:none!important;margin-left:0!important;margin-right:0!important;
+  left:0!important;right:auto!important;transform:none!important}
+html.kfm.kfm-finder .data-container{display:flex!important;flex-direction:column!important;align-items:stretch!important}
+html.kfm.kfm-finder .finder-query{
+  display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:6px 8px!important;
+  width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;
+  margin:0!important;padding:4px 8px!important;overflow:visible!important}
+html.kfm.kfm-finder .finder-query>*{flex:0 1 auto;min-width:0;max-width:100%}
+html.kfm.kfm-finder .grid-wrapper-tools.kfm-tools{
+  display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;
+  margin:0!important;padding:4px 6px!important;box-sizing:border-box!important;overflow:hidden!important;float:none!important;height:auto!important}
+html.kfm.kfm-finder .grid-wrapper-tools.kfm-tools>div.kfm-tools-row,
+html.kfm.kfm-finder .grid-wrapper-tools.kfm-tools>div:first-child{
+  width:100%!important;max-width:100%!important;box-sizing:border-box!important;
+  padding-left:0!important;padding-right:0!important;margin:0!important}
+html.kfm.kfm-finder .grid-wrapper-tools.kfm-tools>div.kfm-tools-row,
+html.kfm.kfm-finder .grid-wrapper-tools.kfm-tools>div:first-child{
+  display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:4px 6px!important;
+  width:100%!important;max-width:100%!important;min-width:0!important;margin:0!important;padding:0!important;
+  box-sizing:border-box!important;overflow:hidden!important;float:none!important;align-items:stretch}
+html.kfm.kfm-finder .grid-wrapper-tools.kfm-tools>div.kfm-tools-row>span,
+html.kfm.kfm-finder .grid-wrapper-tools.kfm-tools>div:first-child>span{
+  min-width:0!important;max-width:100%!important;width:auto!important;margin:0!important;padding:0!important;
+  float:none!important;position:static!important;box-sizing:border-box!important;overflow:hidden!important}
+html.kfm.kfm-finder .grid-wrapper-tools.kfm-tools .trigger{
+  display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;
+  gap:2px!important;width:100%!important;max-width:100%!important;min-width:0!important;min-height:44px;
+  padding:4px 2px!important;margin:0!important;font-size:11px!important;line-height:1.15!important;
+  box-sizing:border-box!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+html.kfm.kfm-finder .grid-wrapper-tools.kfm-tools .trigger i,
+html.kfm.kfm-finder .grid-wrapper-tools.kfm-tools .trigger svg{flex:0 0 auto;font-size:14px!important;width:16px;height:16px}
+/* チップ見出しが誤って toolbar 扱いになってもグリッドにしない */
+html.kfm.kfm-finder .finder-query .kfm-toolbar,
+html.kfm.kfm-finder .finder-pills .kfm-toolbar,
+html.kfm.kfm-finder .finder-saved .kfm-toolbar{display:revert!important;grid-template-columns:none!important}
 html.kfm.kfm-finder #kfm-sort{max-width:100%;box-sizing:border-box}
 /* ---- v0.0.21 トラッキング（スマホ用1列フォーム・実DOM準拠）---- */
 html.kfm-track #track{position:fixed!important;left:0!important;top:0!important;right:0!important;bottom:calc(68px + env(safe-area-inset-bottom))!important;width:auto!important;max-width:none!important;height:auto!important;
@@ -339,7 +379,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-pager button{width:36px;height:36px;border-radius:50%;border:0;background:#f0f1f3;color:#222;font-size:17px;font-weight:600;line-height:36px;padding:0;cursor:pointer}
  #kfm-pager button:disabled{opacity:.35}
  #kfm-pager .kfm-pg-num{min-width:58px;text-align:center;font-size:14px;font-weight:700;color:#222;font-variant-numeric:tabular-nums}
- html.kfm body .knav-row,html.kfm body .kfm-toolbar{max-width:100vw!important;overflow-x:auto!important;box-sizing:border-box}
+ html.kfm body .knav-row{max-width:100vw!important;overflow-x:auto!important;box-sizing:border-box}
  #kfm-list{display:block;width:100%;max-width:100vw;box-sizing:border-box;padding:4px 8px 90px;font-size:15px;overflow-x:hidden;overflow-x:clip;position:relative;left:0;margin-left:0!important;margin-right:0!important;transform:none!important}
  #kfm-list .kfm-status{font-size:13px;color:#666;padding:4px 2px 8px}
  #kfm-list .kfm-c{background:#fff;border:1px solid #d6d9de;border-radius:12px;margin:0 0 8px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
@@ -436,11 +476,10 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-pager.kfm-hand-left .kfm-pg-info{margin-right:0;margin-left:auto}
 /* v0.1.5: Liquid Glass 風の浮いたカプセル（案A） */
  #kfm-pager{left:10px!important;right:10px!important;border-radius:999px;border:0!important;padding:6px 4px 6px 12px!important;min-height:60px;isolation:isolate;
-   background:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,.28))!important;
-   -webkit-backdrop-filter:blur(18px) saturate(180%);backdrop-filter:blur(18px) saturate(180%);
+   background:linear-gradient(180deg,rgba(255,255,255,.92),rgba(255,255,255,.82))!important;
+   -webkit-backdrop-filter:blur(18px) saturate(120%);backdrop-filter:blur(18px) saturate(120%);
    box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 0 0 1px rgba(255,255,255,.55),inset 0 -1px 1px rgba(0,0,0,.05),0 8px 24px rgba(20,30,60,.18),0 1px 3px rgba(0,0,0,.08)!important}
- #kfm-pager::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;
-   background:linear-gradient(180deg,rgba(255,255,255,.2),transparent 60%)}
+ #kfm-pager::before{display:none!important;content:none!important;background:none!important}
  #kfm-pager button:focus,#kfm-pager button:focus-visible,#kfm-pager button:active{
    outline:none!important;box-shadow:inset 0 1px 0 #fff,inset 0 0 0 .5px rgba(255,255,255,.8),0 2px 6px rgba(20,30,60,.15)!important;
    -webkit-tap-highlight-color:transparent}
@@ -448,8 +487,11 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
    outline:none!important;box-shadow:none!important;background:transparent!important}
  #kfm-pager.kfm-pg-solo{padding-bottom:6px!important}
  #kfm-pager.kfm-hand-left{padding:6px 12px 6px 4px!important}
-/* v0.1.7: 件数欄はボタン類の残り幅（最低44px）を使い、中身は fitCount で縮める */
- #kfm-pager .kfm-pg-info{flex:1 1 0!important;min-width:44px!important;overflow:visible!important}
+/* v0.1.11: 件数は2行用に最低幅を確保（アイコン/矢印は縮めない） */
+ #kfm-pager .kfm-pg-info{flex:1 1 auto!important;min-width:78px!important;max-width:none!important;overflow:visible!important}
+ #kfm-pager .kfm-pg-icons{margin:0 8px 0 0!important;gap:2px!important}
+ #kfm-pager.kfm-hand-left .kfm-pg-icons{margin:0 0 0 8px!important}
+ #kfm-pager .kfm-pg-ctl{gap:1px!important}
  #kfm-pager .kfm-pg-sum>span{display:block;white-space:nowrap;overflow:visible!important;text-overflow:clip!important}
  #kfm-pager .kfm-pg-sum{color:#333}
  #kfm-pager .kfm-pg-sum>span:first-child{font-weight:700;color:#111}
@@ -461,11 +503,11 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
    #kfm-pager{background:#f7f8fa!important;box-shadow:0 0 0 1px #e1e4e8,0 6px 18px rgba(20,30,60,.18)!important}
    #kfm-pager::before{display:none}
    #kfm-pager .kfm-pg-ctl button{background:#fff;box-shadow:0 0 0 1px #e1e4e8}}
-/* v0.1.6: 件数が長くても矢印・アイコンを押し出さない */
+/* v0.1.11: 件数を押し潰さない。アイコン/矢印は固定幅のまま */
  #kfm-pager .kfm-pg-ctl,#kfm-pager .kfm-pg-icons{flex-shrink:0!important}
- #kfm-pager .kfm-pg-info{flex:1 1 auto!important;min-width:0!important;overflow:hidden!important}
- #kfm-pager .kfm-pg-sum{white-space:nowrap;overflow:hidden;text-overflow:clip}
- #kfm-pager .kfm-pg-sum>span{white-space:nowrap;overflow:visible;text-overflow:clip}
+ #kfm-pager .kfm-pg-info{flex:1 1 auto!important;min-width:78px!important;overflow:visible!important}
+ #kfm-pager .kfm-pg-sum{display:flex!important;flex-direction:column!important;white-space:normal!important;overflow:visible!important;text-overflow:clip;min-width:0}
+ #kfm-pager .kfm-pg-sum>span{display:block!important;white-space:nowrap!important;overflow:visible!important;text-overflow:clip!important}
  html.kfm-restoring #kfm-list>*{visibility:hidden}
  html.kfm-restoring #kfm-list{min-height:60vh;position:relative}
  html.kfm-restoring #kfm-list::before{content:'前の位置に戻しています…';position:absolute;left:0;right:0;top:40px;text-align:center;color:#888;font-size:14px;visibility:visible}
@@ -577,7 +619,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  html.kfm input,html.kfm select,html.kfm textarea{max-width:100%!important;min-width:0!important}
  html.kfm.kfm-finder .filter-row input:not([type=checkbox]):not([type=radio]),html.kfm.kfm-finder .filter-row select{width:100%!important}
  html.kfm img,html.kfm svg,html.kfm canvas{max-width:100%!important}
- html.kfm .knav-row,html.kfm .kfm-toolbar,html.kfm .filter-range--seg{flex-wrap:wrap!important}
+ html.kfm .knav-row,html.kfm .filter-range--seg{flex-wrap:wrap!important}
  html.kfm .kfm-bottombar{flex-wrap:wrap!important;overflow-x:hidden!important}
  /* v0.1.9: カテゴリチップの × を押しやすく */
  html.kfm .filter-values>span{display:inline-flex!important;align-items:center;gap:2px;margin:2px 4px 2px 0!important;padding:4px 4px 4px 8px!important;border:1px solid #d0d5dd;border-radius:14px;background:#f5f7fa;font-size:13px;line-height:1.2;max-width:100%;box-sizing:border-box}
@@ -1590,22 +1632,23 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const fits = () => [...se.children].every(c => c.scrollWidth <= box.clientWidth + 0.5)
       && se.scrollHeight <= (pg || box).clientHeight + 0.5;
     const set = (...a) => { se.textContent = ''; a.forEach(txt => se.appendChild(el('span', null, txt))); };
-    // 2行を 12→10px で先に試す（ユーザー要望）。だめなら 9.5→9、それでもだめなら3行
+    // v0.1.11: 2行（11–12px）を最優先。どうしても入らなければ10pxの2行、最後に3行
     const two = [[`${n[0]}–${n[1]}`, `/ ${n[2]}件`], [`${n[0]}–${n[1]}`, `/${n[2]}件`]];
     for (const row of two) {
       set(...row);
-      for (let f = 12; f >= 10; f -= 0.5) {
+      for (let f = 12; f >= 11; f -= 0.5) {
         se.style.fontSize = f + 'px'; se.style.lineHeight = '1.25';
         if (fits()) return;
       }
     }
     for (const row of two) {
       set(...row);
-      for (let f = 9.5; f >= 9; f -= 0.5) {
+      for (let f = 10.5; f >= 10; f -= 0.5) {
         se.style.fontSize = f + 'px'; se.style.lineHeight = '1.2';
         if (fits()) return;
       }
     }
+    // 最後の手段の3行
     set(`${n[0]}–`, n[1], `/${n[2]}件`);
     for (let f = 11; f >= 9; f -= 0.5) {
       se.style.fontSize = f + 'px'; se.style.lineHeight = '1.1';
@@ -1754,9 +1797,17 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
     const total = rowCount(wrap);
     collect(wrap); renderList(wrap, total); updatePager(wrap); try { posTick(); } catch (e) {}
     if (total && cache.size < total && !isTyping() && !posRestore) harvest(wrap).then(() => renderList(wrap, total));
-    findByText(['列を設定', 'エクスポート', '高度なフィルター', '保存した検索条件']).forEach(e => {
-      const p = e.parentElement; if (p && !p.closest('.ag-root,#kfm-list,.kfm-gridhost')) { p.classList.add('kfm-toolbar'); let a = p.parentElement; for (let i = 0; a && a !== document.body && i < 5; i++, a = a.parentElement) a.classList.add('kfm-toolbar-anc'); }
+    // v0.1.11: 結果ツールバーだけ印付け（高度なフィルター見出しには触らない）
+    document.querySelectorAll('.kfm-toolbar, .kfm-toolbar-anc, .kfm-tools, .kfm-tools-row').forEach(e => {
+      if (e.closest('.grid-wrapper-tools')) return;
+      e.classList.remove('kfm-toolbar', 'kfm-toolbar-anc', 'kfm-tools', 'kfm-tools-row');
     });
+    const toolsWrap = document.querySelector('.grid-wrapper-tools');
+    if (toolsWrap && !toolsWrap.closest('.ag-root,#kfm-list')) {
+      toolsWrap.classList.add('kfm-tools');
+      const row = toolsWrap.querySelector(':scope > div');
+      if (row) row.classList.add('kfm-tools-row');
+    }
     compactTools();
   }
   function compactTools() {
@@ -1770,7 +1821,7 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
       [/^API\s*クエリ/, 'API'],
       [/^用語集/, '用語']
     ];
-    document.querySelectorAll('.grid-wrapper-tools .trigger, .kfm-toolbar .trigger, .tool__column, .tool__jumpcolumn, .tool__glossary').forEach(el => {
+    document.querySelectorAll('.grid-wrapper-tools.kfm-tools .trigger, .grid-wrapper-tools.kfm-tools .tool__column, .grid-wrapper-tools.kfm-tools .tool__jumpcolumn, .grid-wrapper-tools.kfm-tools .tool__glossary').forEach(el => {
       const tEl = el.classList.contains('trigger') ? el : el.querySelector('.trigger') || el;
       if (!tEl || tEl.dataset.kfmShort) return;
       const raw = norm(tEl.textContent);
