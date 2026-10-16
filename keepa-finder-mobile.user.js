@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.14
+// @version      0.1.15
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -81,7 +81,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.14';
+  const VERSION = 'v0.1.15';
   const onFinder = () => /^#!finder/i.test(location.hash);
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
@@ -605,8 +605,8 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
    background:#f2f4f7;border:1px solid #ccd;border-radius:8px;color:#222}
  html.kfm body .kfm-collapsed>*:not(.kfm-toggle){display:none!important}
  html.kfm body .kfm-bottombar{position:fixed!important;left:0;right:0;bottom:0;z-index:9999;display:flex!important;flex-wrap:wrap!important;
-   overflow-x:hidden!important;gap:6px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:rgba(255,255,255,.97);
-   border-top:1px solid #ccc;box-sizing:border-box;width:100%!important;max-width:100vw!important;justify-content:stretch}
+   overflow-x:hidden!important;gap:6px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:#fff!important;
+   border-top:1px solid #ccc;border-radius:10px 10px 0 0;box-sizing:border-box;width:100%!important;max-width:100vw!important;justify-content:stretch}
  html.kfm body .kfm-bottombar>*{flex:1 1 auto;font-size:12px;min-width:0;max-width:100%;box-sizing:border-box}
  html.kfm body .kfm-search{flex:1 1 100%!important;font-size:15px!important;font-weight:700;min-height:44px;width:100%!important;order:99}
  html.kfm.kfm-finder body{padding-bottom:80px!important}
@@ -640,9 +640,10 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  html.kfm.kfm-finder .finder-pills{padding-bottom:8px!important;margin-bottom:8px!important}
  /* 下バー: リセット・件数・探すが重ならない */
  html.kfm body .filter-actions.kfm-bottombar,html.kfm body .kfm-bottombar.filter-actions{
-   display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:8px!important;row-gap:8px!important}
+   display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:8px!important;row-gap:8px!important;
+   background:#fff!important;border-radius:10px 10px 0 0!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
  html.kfm body .filter-actions__trailing{display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:8px!important;
-   flex:1 1 100%!important;width:100%!important;min-width:0!important;margin:0!important;position:static!important}
+   flex:1 1 100%!important;width:100%!important;min-width:0!important;margin:0!important;position:static!important;order:99!important}
  html.kfm body .filter-actions__trailing .filter--reset,html.kfm body .filter-actions__trailing .filter-form--reset{
    display:block!important;position:static!important;flex:1 1 auto!important;min-width:0!important;margin:0!important}
  html.kfm body .filter-actions__trailing .filter-actions__action.-destructive{width:auto!important;max-width:100%!important;white-space:nowrap}
@@ -651,6 +652,26 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
    float:none!important;transform:none!important}
  html.kfm body #filterSubmit.kfm-search,html.kfm body .filter-actions__trailing #filterSubmit{
    flex:1 1 100%!important;width:100%!important;order:99;margin:0!important}
+ /* v0.1.15: フィルターへジャンプを単独行に。ビルダーは次行で概要などと並べ、下線がピルに食い込まないように */
+ html.kfm body .filter-actions.kfm-bottombar .tool__jumpfilter{
+   flex:1 1 100%!important;width:100%!important;max-width:100%!important;min-width:0!important;
+   display:flex!important;align-items:center!important;gap:6px!important;box-sizing:border-box!important;
+   margin:0!important;order:0}
+ html.kfm body .filter-actions.kfm-bottombar .tool__jumpfilter .filter-jump,
+ html.kfm body .filter-actions.kfm-bottombar input.filter-jump{
+   flex:1 1 auto!important;width:100%!important;max-width:100%!important;min-width:0!important;
+   box-sizing:border-box!important;display:block!important}
+ html.kfm body .filter-actions.kfm-bottombar .filter-actions__gap{display:none!important;width:0!important;flex:0 0 0!important;margin:0!important;padding:0!important}
+ html.kfm body .filter-actions.kfm-bottombar .filter-layout{
+   flex:0 1 auto!important;width:auto!important;max-width:100%!important;min-width:0!important;order:1}
+ html.kfm body .filter-actions.kfm-bottombar .filter-layout .filter-actions__action,
+ html.kfm body .filter-actions.kfm-bottombar #filterLayoutToggle{
+   white-space:nowrap!important;max-width:100%!important}
+ html.kfm body .filter-actions.kfm-bottombar #filterAbout,
+ html.kfm body .filter-actions.kfm-bottombar .tool__filterinfo,
+ html.kfm body .filter-actions.kfm-bottombar > span:not(.tool__jumpfilter):not(.filter-actions__gap):not(.filter-actions__trailing){
+   flex:0 1 auto!important;order:1!important}
+ html.kfm body .filter-actions.kfm-bottombar .filter-layout{order:1!important}
  html.kfm input,html.kfm select,html.kfm textarea{font-size:16px!important;-webkit-text-size-adjust:100%}
  html.kfm .filter-row,html.kfm .filter-range,html.kfm .filter-text,html.kfm .filter-input{zoom:1!important;transform:none!important}
  html.kfm .filter-row .filter-row--label,html.kfm .filter-row .filter-row--label-extended{display:block!important;width:100%!important;
