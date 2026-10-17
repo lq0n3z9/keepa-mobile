@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.20
+// @version      0.1.21
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -82,7 +82,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.20';
+  const VERSION = 'v0.1.21';
   // v0.1.17: iOS はスクロールでアドレスバーが伸び縮みするたび・キーボード開閉のたびに resize が来る。
   // 高さだけの変化では重い作り直しをしない（スクロールのカクつきの原因）
   // v0.1.17: 同じクラスを付け外しし直さない（html のクラス書き換えはページ全体の再計算になる。付け外しの無限ループでスクロールが重かった）
@@ -124,6 +124,23 @@
    max-height:50vh;overflow-y:auto!important;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:#fff!important;border:1px solid #d0d5dd;border-radius:12px;box-shadow:0 -6px 24px rgba(0,0,0,.16);box-sizing:border-box;z-index:5}
  html.kfm-kb body .kfm-bottombar.kfm-kb-host>*:not(:focus-within){display:none!important}
  html.kfm-kb body .kfm-bottombar.kfm-kb-host .content-jump{max-height:calc(var(--kfm-vvh,60vh) - 72px)!important}
+ /* v0.1.21: 下パネルの開閉 */
+ #kfm-bb-tog{display:none}
+ html.kfm.kfm-finder body .kfm-bottombar{overflow:visible!important}
+ html.kfm.kfm-finder body .kfm-bottombar #kfm-bb-tog{display:flex;position:absolute;left:50%;top:-15px;transform:translateX(-50%);width:44px;height:22px;padding:0;margin:0;
+   align-items:center;justify-content:center;border-radius:11px;border:1px solid rgba(255,255,255,.7);color:#5f6b7a;cursor:pointer;z-index:2;
+   background:rgba(255,255,255,.62);-webkit-backdrop-filter:blur(14px) saturate(180%);backdrop-filter:blur(14px) saturate(180%);
+   box-shadow:0 2px 8px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.9);-webkit-tap-highlight-color:transparent;flex:none!important;order:-1}
+ html.kfm.kfm-finder body .kfm-bottombar #kfm-bb-tog::before{content:'';position:absolute;inset:-10px -8px}
+ html.kfm.kfm-finder body .kfm-bottombar #kfm-bb-tog svg{transition:transform .22s cubic-bezier(.2,.8,.2,1)}
+ html.kfm-bb-min.kfm-finder body .kfm-bottombar #kfm-bb-tog svg{transform:rotate(180deg)}
+ html.kfm-bb-min.kfm-finder body .kfm-bottombar>*:not(.filter-actions__trailing):not(#kfm-bb-tog){display:none!important}
+ html.kfm-bb-min.kfm-finder body .kfm-bottombar .filter-actions__trailing>*:not(#totalResultsQuery):not(#filterSubmit){display:none!important}
+ html.kfm-bb-min.kfm-finder body .kfm-bottombar .filter-actions__trailing{flex-wrap:nowrap!important}
+ html.kfm-bb-min.kfm-finder body .kfm-bottombar #filterSubmit{flex:1 1 auto!important;width:auto!important;min-width:0!important}
+ html.kfm-bb-min.kfm-finder body .kfm-bottombar{padding-top:12px!important}
+ html.kfm-kb body .kfm-bottombar #kfm-bb-tog{display:none!important}
+ html.kfm.kfm-finder .grid-filter-form,html.kfm.kfm-finder #grid-form-finder{padding-bottom:calc(var(--kfm-bbh,120px) + 24px)!important}
  html.kfm-kb #kfm-ac-done{bottom:var(--kfm-kb,0px)!important;padding-bottom:10px!important}
  html.kfm-kb body .generalOverlay:has(.grid-filter-form--view-only),html.kfm-kb body .generalOverlay.kfm-afov{top:calc(var(--kfm-vvtop,0px) + 8px)!important;max-height:calc(var(--kfm-vvh,100vh) - 16px)!important}
  html.kfm-kb.kfm-track #track{top:var(--kfm-vvtop,0px)!important;bottom:calc(var(--kfm-kb,0px) + 60px)!important}
@@ -2098,7 +2115,46 @@ ${SCROLL_CSS}`;
       if (t.includes('フィルタービルダー') || t.includes('API クエリ') || t.includes('フィルターへジャンプ')) break;
       bar = bar.parentElement;
     }
-    if (bar && bar !== document.body && norm(bar.textContent).length < 200) bar.classList.add('kfm-bottombar');
+    if (bar && bar !== document.body && norm(bar.textContent).length < 200) { kc(bar, 'kfm-bottombar', true); bbToggle(bar); }
+  }
+  // ---- v0.1.21: 下のパネルを畳める（畳むと「製品を探す」と件数だけ）。状態は覚えておく ----
+  let bbRO = null, bbObs = null;
+  function bbSetH(bar) {
+    const h = Math.ceil(bar.getBoundingClientRect().height || 0);
+    if (h && document.documentElement.style.getPropertyValue('--kfm-bbh') !== h + 'px') document.documentElement.style.setProperty('--kfm-bbh', h + 'px');
+  }
+  function bbApply(bar, min, anim) {
+    const H = document.documentElement;
+    if (H.classList.contains('kfm-bb-min') === min) return;
+    const from = anim ? bar.getBoundingClientRect().height : 0;
+    kc(H, 'kfm-bb-min', min);
+    const b = bar.querySelector('#kfm-bb-tog');
+    if (b) { b.setAttribute('aria-expanded', String(!min)); b.setAttribute('aria-label', min ? 'パネルを広げる' : 'パネルを畳む'); }
+    try { document.cookie = 'kfmBbMin=' + (min ? '1' : '0') + '; max-age=31536000; path=/; SameSite=Lax'; } catch (e) {}   // Keepa は読み込み時に localStorage を消すので cookie に
+    if (anim && from && bar.animate) {
+      const to = bar.getBoundingClientRect().height;
+      if (Math.abs(to - from) > 2) {
+        // 高さを変えるのではなく下からずらす（再レイアウトなしで滑らか）
+        bar.animate([{ transform: `translateY(${to - from}px)` }, { transform: 'translateY(0)' }], { duration: 220, easing: 'cubic-bezier(.2,.8,.2,1)' });
+      }
+    }
+    bbSetH(bar);
+  }
+  function bbToggle(bar) {
+    if (!bar.querySelector('#kfm-bb-tog')) {
+      const b = el('button'); b.type = 'button'; b.id = 'kfm-bb-tog';
+      b.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+      b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); bbApply(bar, !document.documentElement.classList.contains('kfm-bb-min'), true); });
+      bar.appendChild(b);
+      let min = false; try { min = /(?:^|;\s*)kfmBbMin=1(?:;|$)/.test(document.cookie); } catch (e) {}
+      kc(document.documentElement, 'kfm-bb-min', !min);   // bbApply が必ず反映するように逆にしてから
+      bbApply(bar, min, false);
+    }
+    if (bbObs !== bar && window.ResizeObserver) {
+      if (bbRO) bbRO.disconnect();
+      bbRO = new ResizeObserver(() => bbSetH(bar)); bbRO.observe(bar); bbObs = bar;
+    }
+    bbSetH(bar);
   }
 
   let badgeShown = false;
