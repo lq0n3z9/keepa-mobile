@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.19
+// @version      0.1.20
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -82,7 +82,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.19';
+  const VERSION = 'v0.1.20';
   // v0.1.17: iOS はスクロールでアドレスバーが伸び縮みするたび・キーボード開閉のたびに resize が来る。
   // 高さだけの変化では重い作り直しをしない（スクロールのカクつきの原因）
   // v0.1.17: 同じクラスを付け外しし直さない（html のクラス書き換えはページ全体の再計算になる。付け外しの無限ループでスクロールが重かった）
@@ -707,6 +707,9 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  html.kfm body #totalResultsQuery{position:static!important;display:inline-flex!important;align-items:center;flex:0 0 auto!important;
    margin:0!important;padding:6px 10px!important;border-radius:14px;background:#e8f0fe;color:#1a73e8;font-weight:700;font-size:13px;line-height:1.2;
    float:none!important;transform:none!important}
+ /* v0.1.20: Keepa が件数を隠しているとき（条件なし・読み込み中）や中身が空のときは、空の青い丸を出さない */
+ html.kfm body #totalResultsQuery[style*="display: none"],html.kfm body #totalResultsQuery[style*="display:none"],html.kfm body #totalResultsQuery:empty,
+ html.kfm body #totalResultsQuery:has(.filter-count__figure:empty),html.kfm body #totalResultsQuery:not(:has(.filter-count__figure)){display:none!important}
  html.kfm body #filterSubmit.kfm-search,html.kfm body .filter-actions__trailing #filterSubmit{
    flex:1 1 100%!important;width:100%!important;order:99;margin:0!important}
  /* v0.1.15: フィルターへジャンプを単独行に。ビルダーは次行で概要などと並べ、下線がピルに食い込まないように */
