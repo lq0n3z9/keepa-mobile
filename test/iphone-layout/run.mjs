@@ -90,13 +90,23 @@ async function measure(page) {
       headerDir: hcs && hcs.flexDirection,
       checks,
       tog: !!document.getElementById('kfm-bb-tog'),
+      togParent: (() => {
+        const t = document.getElementById('kfm-bb-tog');
+        return t && t.parentElement ? t.parentElement.tagName : '';
+      })(),
+      togPos: (() => {
+        const t = document.getElementById('kfm-bb-tog');
+        return t ? getComputedStyle(t).position : '';
+      })(),
       togVis: (() => {
         const t = document.getElementById('kfm-bb-tog');
         if (!t) return false;
         const r = t.getBoundingClientRect();
         const cs = getComputedStyle(t);
-        return cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 8 && r.height > 8;
+        return cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 8 && r.height > 8
+          && r.bottom > 0 && r.top < window.innerHeight;
       })(),
+      dbg: !!document.getElementById('kfm-ver-dbg'),
       bbMin: document.documentElement.classList.contains('kfm-bb-min'),
       bbh: document.documentElement.style.getPropertyValue('--kfm-bbh'),
       cookie: document.cookie,
@@ -129,6 +139,8 @@ function ok(m, d, landscape, view) {
     }
     if (!m.tog) fail.push('collapse toggle #kfm-bb-tog missing');
     else if (!m.togVis) fail.push('collapse toggle not visible');
+    if (m.tog && m.togParent !== 'BODY') fail.push('toggle not on body: ' + m.togParent);
+    if (m.tog && m.togPos !== 'fixed') fail.push('toggle not position:fixed: ' + m.togPos);
     if (m.bar && m.bar.l > 2) fail.push('bottombar inset from left: ' + m.bar.l);
   }
   return fail;
@@ -201,6 +213,71 @@ async function runCollapse(browser, base, d) {
   return { tag: d.name + '-collapse', label: d.label, w: d.w, h: d.h, landscape: false, view: 'collapse', m, fails, shot: minShot, expShot };
 }
 
+async function runRobust(browser, base, d) {
+  const ctx = await browser.newContext({
+    viewport: { width: d.w, height: d.h },
+    deviceScaleFactor: d.dpr,
+    isMobile: true,
+    hasTouch: true,
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+    screen: { width: d.w, height: d.h },
+  });
+  const page = await ctx.newPage();
+  const url = base + '/test/iphone-layout/mock.html?view=filter#!finder';
+  const fails = [];
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(800);
+
+  await page.evaluate(() => {
+    const bar = document.querySelector('.kfm-bottombar, .filter-actions');
+    if (bar) {
+      bar.style.setProperty('overflow', 'hidden', 'important');
+      bar.style.setProperty('overflow-x', 'hidden', 'important');
+      bar.style.setProperty('overflow-y', 'hidden', 'important');
+    }
+  });
+  await page.waitForTimeout(200);
+  let m = await measure(page);
+  if (!m.tog || !m.togVis) fails.push('toggle hidden when bar overflow:hidden');
+  if (m.togParent !== 'BODY') fails.push('toggle not on body after overflow: ' + m.togParent);
+
+  await page.evaluate(() => {
+    const t = document.getElementById('kfm-bb-tog');
+    if (t) t.remove();
+    const bar = document.querySelector('.filter-actions');
+    if (bar) {
+      const html = bar.innerHTML;
+      bar.className = 'filter-actions';
+      bar.innerHTML = html;
+    }
+  });
+  await page.waitForTimeout(700);
+  m = await measure(page);
+  if (!m.tog || !m.togVis) fails.push('toggle not restored after Keepa-like wipe');
+  if (m.togParent !== 'BODY') fails.push('restored toggle not on body: ' + m.togParent);
+  if (!m.bar) fails.push('kfm-bottombar class not restored after wipe');
+
+  await page.evaluate(() => document.documentElement.classList.remove('kfm-finder'));
+  await page.waitForTimeout(100);
+  m = await measure(page);
+  if (!m.tog || !m.togVis) fails.push('toggle hidden without html.kfm-finder');
+
+  await page.evaluate(() => {
+    const v = document.getElementById('kfm-ver');
+    if (v) v.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+  });
+  await page.waitForTimeout(150);
+  m = await measure(page);
+  if (!m.dbg) fails.push('version long-press/contextmenu debug overlay missing');
+  const dbgText = await page.evaluate(() => (document.getElementById('kfm-ver-dbg') || {}).textContent || '');
+  if (!/toggle=/.test(dbgText) || !/kfm-bottombar=/.test(dbgText)) fails.push('debug overlay missing panel/toggle info');
+
+  const shot = join(OUT, d.name + '-bb-robust.png');
+  await page.screenshot({ path: shot, fullPage: false });
+  await ctx.close();
+  return { tag: d.name + '-robust', label: d.label, w: d.w, h: d.h, landscape: false, view: 'robust', m, fails, shot };
+}
+
 async function main() {
   await mkdir(OUT, { recursive: true });
   await mkdir(ART, { recursive: true });
@@ -220,6 +297,7 @@ async function main() {
     if (d.name === 'promax16' || d.name === 'se' || d.name === 'iphone16') {
       results.push(await runDevice(browser, base, d, 'filter', false));
       results.push(await runCollapse(browser, base, d));
+      results.push(await runRobust(browser, base, d));
       if (d.name !== 'iphone16') results.push(await runDevice(browser, base, d, 'results', true));
     }
   }
