@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>Keepa finder mock</title>
+  <meta name="viewport" content="">
+  <style>
+    /* Keepa-like desktop constraints that break on iPhone 16 Pro Max (440 CSS px) */
+    html, body { margin: 0; padding: 0; font: 16px -apple-system, Roboto, Tahoma, sans-serif; color: #444; background: #ececec; }
+    body { position: absolute; inset: 0; }
+    #content { width: 100%; min-height: 100%; }
+    .knav.knav--fixed { position: fixed; top: 0; left: 0; right: 0; z-index: 100; height: 50px; background: #256a93; color: #fff; display: flex; align-items: center; padding: 0 10px; }
+    .knav-row { display: flex; gap: 12px; overflow: hidden; }
+    .knav-row a { color: #fff; text-decoration: none; white-space: nowrap; font-size: 14px; }
+    #contentAlign[data-layout] { --col-min: 650px; --col-max: 850px; --col-side: 24px; position: relative; min-width: var(--col-min); max-width: var(--col-max); margin-right: var(--col-side); margin-left: var(--col-side); }
+    #contentAlign[data-layout="full"] { --col-min: 420px; --col-max: none; }
+    #contentAlign { padding-top: 58px; }
+    .filter-input { width: 440px; align-items: center; background: #fff; border: 1px solid #d9dfe5; border-radius: 6px; display: flex; height: 40px; overflow: hidden; box-sizing: content-box; }
+    .filter-input.-mid { width: 350px; }
+    .filter-input.-wide { width: 500px; }
+    .filter-input input { border: 0; width: 100%; height: 38px; font-size: 16px; padding: 0 10px; box-sizing: border-box; }
+    .filter-text--wrapper { display: flex; flex-flow: row wrap; }
+    .filter-text--wrapper > .filter-text { margin: 0 24px 10px 0; width: calc((100% - 48px) / 3); max-width: 440px; }
+    .filter-row { padding: 8px 0; }
+    .filter-row--label { font-weight: 600; margin-bottom: 6px; }
+    .filter-range { display: flex; gap: 8px; }
+    .filter-range--field { flex: 1; }
+    .filter-range--input { width: 100%; height: 40px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; padding: 0 10px; box-sizing: border-box; }
+    .filter-actions { display: flex; align-items: center; gap: 8px; background: #fff; padding: 10px; border-top: 1px solid #ccc; }
+    .filter-actions__trailing { display: flex; gap: 8px; align-items: center; }
+    .filter-jump { border: none; border-bottom: 1px solid #8ab; width: 100%; font-size: 14px; padding: 8px 4px; }
+    .card.-w-min-800 { min-width: 800px; background: #fff; padding: 16px; }
+    .data-container { background: #fff; }
+    .grid-wrapper-tools { padding: 8px; }
+    .grid-wrapper-tools > div { display: flex; gap: 8px; }
+    .trigger { border: 1px solid #ccd; background: #f7f8fa; padding: 8px 10px; border-radius: 8px; font-size: 13px; }
+    .finder-query { padding: 8px; }
+    .finder-query--results { font-weight: 700; }
+    .ag-root-wrapper { min-height: 120px; }
+    .ag-header-cell { display: inline-block; padding: 4px 8px; font-size: 12px; }
+    .ag-row { display: flex; border-bottom: 1px solid #eee; }
+    .ag-cell { padding: 8px; min-width: 80px; }
+    .ag-paging-panel { display: flex; gap: 8px; padding: 8px; }
+    .ag-paging-button { min-width: 32px; min-height: 32px; }
+    #filterSubmit { background: #1a73e8; color: #fff; border: 0; border-radius: 8px; min-height: 44px; padding: 0 16px; font-weight: 700; }
+    #totalResultsQuery { background: #e8f0fe; color: #1a73e8; border-radius: 14px; padding: 6px 10px; font-weight: 700; font-size: 13px; }
+    .filter-count__figure { display: inline; }
+    #grid-form-finder { background: #fff; padding: 12px; }
+  </style>
+</head>
+<body>
+<div id="content">
+  <nav class="knav knav--fixed">
+    <div class="knav-row">
+      <a href="#!finder">ファインダー</a>
+      <a href="#!deals">お得情報</a>
+      <a href="#!tracking">トラッキング</a>
+      <a href="#!manage">整理</a>
+    </div>
+  </nav>
+  <div id="contentAlign" data-layout="full">
+    <div id="bodyPanel">
+      <form id="grid-form-finder" class="grid-filter-form" style="display:none">
+        <div class="filter-row">
+          <div class="filter-row--label">カテゴリ</div>
+          <div class="filter-text--wrapper">
+            <div class="filter-text"><div class="filter-input"><input type="text" placeholder="カテゴリ"></div></div>
+            <div class="filter-text"><div class="filter-input -mid"><input type="text" placeholder="ブランド"></div></div>
+            <div class="filter-text"><div class="filter-input -wide"><input type="text" placeholder="タイトル"></div></div>
+          </div>
+        </div>
+        <div class="filter-row">
+          <div class="filter-row--label">売上ランキング</div>
+          <div class="filter-range">
+            <div class="filter-range--field"><input class="filter-range--input" type="text" placeholder="から"></div>
+            <div class="filter-range--field"><input class="filter-range--input" type="text" placeholder="まで"></div>
+          </div>
+        </div>
+      </form>
+      <div class="data-container asin">
+        <div class="finder-query">
+          <span class="finder-query--results">6411 商品</span>
+        </div>
+        <div class="grid-wrapper-tools">
+          <div>
+            <span class="tool__column"><button type="button" class="trigger">列を設定</button></span>
+            <span><button type="button" class="trigger">エクスポート</button></span>
+            <span><button type="button" class="trigger">検索インサイト</button></span>
+            <span><button type="button" class="trigger">用語集</button></span>
+          </div>
+        </div>
+        <div class="ag-root-wrapper">
+          <div class="ag-header">
+            <div class="ag-header-viewport">
+              <div class="ag-header-cell" col-id="imagesCSV"><span class="ag-header-cell-text">画像</span></div>
+              <div class="ag-header-cell" col-id="title"><span class="ag-header-cell-text">商品名</span></div>
+              <div class="ag-header-cell" col-id="asin"><span class="ag-header-cell-text">ASIN</span></div>
+              <div class="ag-header-cell" col-id="SALES_current"><span class="ag-header-cell-text">売れ筋ランキング 現在</span></div>
+              <div class="ag-header-cell" col-id="BUY_BOX_SHIPPING_current"><span class="ag-header-cell-text">Buy Box 現在</span></div>
+            </div>
+          </div>
+          <div class="ag-center-cols-container" style="height:112px">
+            <div class="ag-row" row-index="0" style="height:56px">
+              <div class="ag-cell" col-id="imagesCSV"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" width="40" height="40" alt=""></div>
+              <div class="ag-cell" col-id="title">ワイヤレスイヤホン ノイズキャンセリング</div>
+              <div class="ag-cell" col-id="asin">B0TESTASIN</div>
+              <div class="ag-cell" col-id="SALES_current" style="color:#8FBC8F">1,234</div>
+              <div class="ag-cell" col-id="BUY_BOX_SHIPPING_current" style="color:#ff00b4">¥4,980</div>
+            </div>
+            <div class="ag-row" row-index="1" style="height:56px">
+              <div class="ag-cell" col-id="imagesCSV"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" width="40" height="40" alt=""></div>
+              <div class="ag-cell" col-id="title">USB-C 急速充電器 65W</div>
+              <div class="ag-cell" col-id="asin">B0CHARGER1</div>
+              <div class="ag-cell" col-id="SALES_current" style="color:#8FBC8F">8,210</div>
+              <div class="ag-cell" col-id="BUY_BOX_SHIPPING_current" style="color:#ff00b4">¥2,180</div>
+            </div>
+          </div>
+          <div class="ag-paging-panel">
+            <span class="ag-paging-row-summary-panel">1 から 100 / 6411</span>
+            <span class="ag-paging-description">1 / 65</span>
+            <button type="button" class="ag-paging-button" ref="btFirst" disabled>«</button>
+            <button type="button" class="ag-paging-button" ref="btPrevious" disabled>‹</button>
+            <span ref="lbCurrent">1</span>
+            <span ref="lbTotal">65</span>
+            <button type="button" class="ag-paging-button" ref="btNext">›</button>
+            <button type="button" class="ag-paging-button" ref="btLast">»</button>
+          </div>
+        </div>
+      </div>
+      <div class="filter-actions">
+        <span class="tool__jumpfilter"><input class="filter-jump" placeholder="フィルターへジャンプ"></span>
+        <span class="filter-layout"><button type="button" id="filterLayoutToggle">フィルタービルダー</button></span>
+        <div class="filter-actions__trailing">
+          <span id="totalResultsQuery"><span class="filter-count__figure">6411</span></span>
+          <button type="button" id="filterSubmit">製品を探す</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  (function () {
+    const q = new URLSearchParams(location.search);
+    if (q.get('view') === 'filter') {
+      const form = document.getElementById('grid-form-finder');
+      form.style.display = 'block';
+    }
+    if (!location.hash) location.hash = '#!finder';
+  })();
+</script>
+<script src="../../keepa-finder-mobile.user.js"></script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.21
+// @version      0.1.22
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -62,10 +62,12 @@
     if (!m) { m = document.createElement('meta'); m.name = 'viewport'; head.appendChild(m); }
     // #!product: 画面幅に合わせ、ピンチで自由に拡大縮小。それ以外（#!finder 等）: 入力時の自動ズームを防ぐ固定倍率
     // #!product: ビューポート幅をKeepa本来のPCレイアウト幅にし、Safariに全体を縮小表示させる（レイアウトは崩さない）＋自由ズーム
-    const want = trackOn ? 'width=device-width, initial-scale=1, maximum-scale=1'
+    // v0.1.22: viewport-fit=cover がないと env(safe-area-inset-*) が 0 のまま（Dynamic Island / ホームインジケータ）
+    const cover = 'viewport-fit=cover';
+    const want = trackOn ? `width=device-width, initial-scale=1, maximum-scale=1, ${cover}`
       : /^#!product/i.test(location.hash)
-      ? `width=${prodW}, minimum-scale=0.1, maximum-scale=5, user-scalable=yes`
-      : 'width=device-width, initial-scale=1, maximum-scale=1';
+      ? `width=${prodW}, minimum-scale=0.1, maximum-scale=5, user-scalable=yes, ${cover}`
+      : `width=device-width, initial-scale=1, maximum-scale=1, ${cover}`;
     if (m.getAttribute('content') !== want) m.setAttribute('content', want);
   }
   function armViewportWatch() {
@@ -82,7 +84,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.21';
+  const VERSION = 'v0.1.22';
   // v0.1.17: iOS はスクロールでアドレスバーが伸び縮みするたび・キーボード開閉のたびに resize が来る。
   // 高さだけの変化では重い作り直しをしない（スクロールのカクつきの原因）
   // v0.1.17: 同じクラスを付け外しし直さない（html のクラス書き換えはページ全体の再計算になる。付け外しの無限ループでスクロールが重かった）
@@ -826,7 +828,50 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
    padding:3px 6px;border-radius:10px;transition:opacity .5s}
  #kfm-badge b{margin-left:6px;cursor:pointer}
 ${SCROLL_CSS}`;
-  const st = document.createElement('style'); st.id = 'kfm-main-css'; st.textContent = css + TM_CSS;
+  // v0.1.22: iPhone 全サイズ（SE〜16 Pro Max）と横向き。Keepa の固定幅（.filter-input 440px / #contentAlign min-width 420〜900）と 100vw、safe-area を吸収
+  const ADAPT_CSS = `
+html.kfm{--kfm-sat:env(safe-area-inset-top,0px);--kfm-sab:env(safe-area-inset-bottom,0px);--kfm-sal:env(safe-area-inset-left,0px);--kfm-sar:env(safe-area-inset-right,0px);
+  --nav-h:calc(50px + env(safe-area-inset-top,0px))}
+html.kfm:not(.kfm-product),html.kfm:not(.kfm-product) body{max-width:100%!important;width:100%!important;min-width:0!important;box-sizing:border-box}
+html.kfm:not(.kfm-product) #contentAlign,html.kfm:not(.kfm-product) #contentAlign[data-layout]{
+  min-width:0!important;max-width:100%!important;width:100%!important;margin-left:0!important;margin-right:0!important;
+  --col-min:0!important;--col-max:100%!important;--col-side:0px!important;--gutter:12px;box-sizing:border-box!important;left:auto!important}
+html.kfm:not(.kfm-product) #content,html.kfm:not(.kfm-product) #bodyPanel,html.kfm:not(.kfm-product) #wrapper,html.kfm:not(.kfm-product) .mainContent,
+html.kfm:not(.kfm-product) .data-container,html.kfm:not(.kfm-product) .grid-wrapper,html.kfm:not(.kfm-product) .grid-filter-form,html.kfm:not(.kfm-product) #grid-form-finder{
+  max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+html.kfm:not(.kfm-product) .filter-input,html.kfm:not(.kfm-product) .filter-input.-mid,html.kfm:not(.kfm-product) .filter-input.-wide,
+html.kfm:not(.kfm-product) .filter-text--wrapper>.filter-text,html.kfm:not(.kfm-product) .filter-jump,html.kfm:not(.kfm-product) .filter-columns{
+  width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+html.kfm:not(.kfm-product) .card.-w-min-800,html.kfm:not(.kfm-product) [class*="-w-min-"]{min-width:0!important;max-width:100%!important}
+html.kfm:not(.kfm-product) .card.-w-flex{width:100%!important;max-width:100%!important}
+html.kfm:not(.kfm-product) .popup--medium{min-width:0!important;max-width:100%!important}
+html.kfm .knav--fixed,html.kfm .knav.knav--fixed{padding-top:var(--kfm-sat);padding-left:var(--kfm-sal);padding-right:var(--kfm-sar);box-sizing:border-box}
+html.kfm body .kfm-bottombar{left:0!important;right:0!important;width:auto!important;max-width:none!important;
+  padding-left:max(8px,var(--kfm-sal))!important;padding-right:max(8px,var(--kfm-sar))!important;
+  padding-bottom:calc(8px + var(--kfm-sab))!important}
+#kfm-pager{left:max(8px,var(--kfm-sal))!important;right:max(8px,var(--kfm-sar))!important;width:auto!important;max-width:none!important}
+#kfm-list,html.kfm body .knav-row,html.kfm-manage,html.kfm-manage body{max-width:100%!important}
+html.kfm body .generalOverlay:has(.grid-filter-form--view-only),html.kfm body .generalOverlay.kfm-afov{
+  top:calc(70px + var(--kfm-sat))!important;left:max(8px,var(--kfm-sal))!important;right:max(8px,var(--kfm-sar))!important;
+  max-height:calc(100dvh - 160px - var(--kfm-sat) - var(--kfm-sab))!important}
+html.kfm ul.ui-autocomplete{left:max(8px,var(--kfm-sal))!important;right:max(8px,var(--kfm-sar))!important;
+  bottom:calc(64px + var(--kfm-sab))!important}
+#kfm-trackbar{padding-left:max(12px,var(--kfm-sal));padding-right:max(12px,var(--kfm-sar))}
+#kfm-tm-fab{right:max(12px,var(--kfm-sar));bottom:calc(16px + var(--kfm-sab))}
+#kfm-ac-done{padding-left:max(12px,var(--kfm-sal));padding-right:max(12px,var(--kfm-sar))}
+#kfm-ask .kfm-ask-b,#kfm-sheet .kfm-sh,#kfm-tm-sheet .kfm-tm-box,#kfm-cols .kfm-cols-sh{
+  padding-left:max(14px,var(--kfm-sal));padding-right:max(14px,var(--kfm-sar))}
+html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-right:max(12px,var(--kfm-sar))!important;
+  top:var(--kfm-sat)!important}
+@media (orientation:landscape) and (max-height:500px){
+  html.kfm body .kfm-bottombar{padding-top:6px!important;gap:4px!important}
+  #kfm-pager{min-height:48px;padding-top:4px!important;padding-bottom:4px!important}
+  #kfm-cols .kfm-cols-sh{height:100dvh;max-height:100dvh}
+  #kfm-sheet .kfm-sh{max-height:92dvh}
+  html.kfm-track #track{bottom:calc(56px + var(--kfm-sab))!important}
+  html.kfm-track #kfm-trackbar{height:calc(56px + var(--kfm-sab))}
+}`;
+  const st = document.createElement('style'); st.id = 'kfm-main-css'; st.textContent = css + TM_CSS + ADAPT_CSS;
   (function mountCss() {
     const p = document.head || document.documentElement;
     if (p) { if (!document.getElementById('kfm-main-css')) p.appendChild(st); }
@@ -3302,7 +3347,7 @@ ${SCROLL_CSS}`;
   window.addEventListener('hashchange', () => { kfmCleanup(); setTimeout(kfmCleanup, 300); });
   window.addEventListener('pageshow', () => kfmCleanup());
   setInterval(() => { try { kfmCleanup(); } catch (e) {} }, 2000);   // 見張り: 画面が開いていないのに残ったロックを外す
-  // ==KFM-TABS-BEGIN== v0.1.1: 製品ファインダー以外のタブのスマホ表示（セレクタは 390px 実DOM で確認済み）
+  // ==KFM-TABS-BEGIN== v0.1.1: 製品ファインダー以外のタブのスマホ表示（v0.1.22: 600px メディアクエリを外し全 iPhone 幅で適用）
   const KFM_ROUTES = ['deals', 'tracking', 'manage', 'notification', 'viewer', 'bestseller', 'topseller', 'sellerlookup', 'categorytree'];
   function routeName() { const m = /^#!([a-z]+)/i.exec(location.hash || ''); return m ? m[1].toLowerCase() : ''; }
   function applyRoute() {
@@ -3314,21 +3359,21 @@ ${SCROLL_CSS}`;
   }
   const T = 'html.kfm-tabs';
   const R = n => 'html.kfm-route-' + n;
-  const TABS_CSS = `@media (max-width:600px){
-${T},${T} body{max-width:100vw!important;overflow-x:hidden!important}
-${T} #contentAlign,${T} #bodyPanel{width:auto!important;max-width:100vw!important;min-width:0!important;margin-left:0!important;margin-right:0!important;padding-left:8px!important;padding-right:8px!important;box-sizing:border-box!important;left:auto!important}
+  const TABS_CSS = `
+${T},${T} body{max-width:100%!important;overflow-x:hidden!important}
+${T} #contentAlign,${T} #bodyPanel,${T} #contentAlign[data-layout]{width:auto!important;max-width:100%!important;min-width:0!important;margin-left:0!important;margin-right:0!important;padding-left:max(8px,env(safe-area-inset-left,0px))!important;padding-right:max(8px,env(safe-area-inset-right,0px))!important;box-sizing:border-box!important;left:auto!important;--col-min:0!important;--col-max:100%!important;--col-side:0px!important}
 ${T} #bodyPanel>.card,${T} #bodyPanel>span.card{width:auto!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;margin-left:0!important;margin-right:0!important}
-${T} .knav-sub{max-width:100vw!important;overflow:hidden!important}
-${T} .knav-sub__inner{display:flex!important;flex-wrap:nowrap!important;align-items:center;overflow-x:auto!important;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:4px;padding:0 8px!important;max-width:100vw!important;box-sizing:border-box}
+${T} .knav-sub{max-width:100%!important;overflow:hidden!important}
+${T} .knav-sub__inner{display:flex!important;flex-wrap:nowrap!important;align-items:center;overflow-x:auto!important;-webkit-overflow-scrolling:touch;scrollbar-width:none;gap:4px;padding:0 8px!important;max-width:100%!important;box-sizing:border-box}
 ${T} .knav-sub__link{flex:0 0 auto!important;white-space:nowrap!important;min-height:40px;display:inline-flex!important;align-items:center;font-size:14px!important}
 ${T} .knav-sub .knav-sub__aside,${T} .knav-sub #widget__bucket_quota{display:none!important}
-${T} .data-container{width:auto!important;max-width:calc(100vw - 16px)!important;min-width:0!important;box-sizing:border-box!important;overflow:hidden!important}
-${T} .grid-wrapper{width:auto!important;max-width:calc(100vw - 16px)!important;box-sizing:border-box!important;border:1px solid #d5d9df;overflow:hidden!important}
+${T} .data-container{width:auto!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important;overflow:hidden!important}
+${T} .grid-wrapper{width:auto!important;max-width:100%!important;box-sizing:border-box!important;border:1px solid #d5d9df;overflow:hidden!important}
 ${T} .grid-wrapper .grid,${T} .grid-wrapper .ag-root-wrapper:not(.kfm-gridhost){width:100%!important;max-width:100%!important;box-sizing:border-box!important}
 ${T} .grid-wrapper .ag-paging-panel{flex-wrap:wrap!important;height:auto!important;min-height:48px;gap:8px;font-size:14px!important;justify-content:center!important}
 ${T} .grid-wrapper .ag-paging-button{min-width:40px;min-height:40px;display:inline-flex!important;align-items:center;justify-content:center}
 ${T} .grid-wrapper .ag-header-cell-text,${T} .grid-wrapper .ag-cell{font-size:14px!important}
-${T} .grid-wrapper-tools{max-width:calc(100vw - 16px)!important;box-sizing:border-box!important;height:auto!important}
+${T} .grid-wrapper-tools{max-width:100%!important;box-sizing:border-box!important;height:auto!important}
 ${T} .grid-wrapper-tools>div:first-child{display:flex!important;flex-wrap:wrap!important;gap:8px;max-width:100%;width:auto!important;float:none!important}
 ${T} .grid-wrapper-tools>div:first-child>span{float:none!important;position:static!important;flex:0 0 auto}
 ${T} .grid-wrapper-tools .trigger{min-height:40px;display:inline-flex!important;align-items:center;font-size:14px!important}
@@ -3348,8 +3393,8 @@ ${R('deals')} .productContainer{min-width:0!important;width:calc(50% - 8px)!impo
 ${R('deals')} .productContainer .title{max-width:100%!important}
 ${R('tracking')} .dashboard .grid{display:grid!important;grid-template-columns:1fr!important;gap:10px}
 ${R('tracking')} .dashboard .card{width:auto!important;max-width:100%!important;margin:0!important;box-sizing:border-box}
-${R('manage')} #kfm-tm-fab{right:max(12px,env(safe-area-inset-right));max-width:calc(100vw - 24px);white-space:nowrap}
-${R('manage')} #kfm-ver{max-width:calc(100vw - 16px)}
+${R('manage')} #kfm-tm-fab{right:max(12px,env(safe-area-inset-right));max-width:calc(100% - 24px);white-space:nowrap}
+${R('manage')} #kfm-ver{max-width:calc(100% - 16px)}
 ${R('notification')} #bodyPanel>.group-header{font-size:18px!important;margin-left:0!important;padding:0 4px!important;word-break:break-word}
 ${R('notification')} #notificationFilter{text-align:left!important}
 ${R('notification')} #notificationFilterForm{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
@@ -3379,9 +3424,9 @@ ${R('sellerlookup')} .seller-lookup__pill{min-height:40px;font-size:14px!importa
 ${R('sellerlookup')} #sellerLookupResults{max-width:100%!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch}
 ${R('categorytree')} #grid-wrapper-category{width:auto!important}
 ${R('categorytree')} #grid-category .ag-root-wrapper{position:relative!important;left:0!important;width:100%!important}
-${T} .content-column{max-width:calc(100vw - 16px)!important;box-sizing:border-box;left:8px!important;right:8px!important;width:auto!important}
-${R('categorytree')} #grid-tools-categorytree .content-column{max-width:calc(100vw - 16px)!important;box-sizing:border-box}
-}`;
+${T} .content-column{max-width:100%!important;box-sizing:border-box;left:max(8px,env(safe-area-inset-left,0px))!important;right:max(8px,env(safe-area-inset-right,0px))!important;width:auto!important}
+${R('categorytree')} #grid-tools-categorytree .content-column{max-width:100%!important;box-sizing:border-box}
+`;
   (function initTabs() {
     const add = () => {
       if (document.getElementById('kfm-tabs-css')) return;
