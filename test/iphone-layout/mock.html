@@ -23,6 +23,14 @@
     .filter-text--wrapper > .filter-text { margin: 0 24px 10px 0; width: calc((100% - 48px) / 3); max-width: 440px; }
     .filter-row { padding: 8px 0; }
     .filter-row--label { font-weight: 600; margin-bottom: 6px; }
+    /* Keepa desktop: header checkboxes sit inline and wrap (the owner screenshot) */
+    .grid-filter-form .filter-row--label-extended { align-items: center; display: flex; gap: 0 24px; }
+    .grid-filter-form .filter-row--label-extended > span:first-child { flex: 0 0 auto; min-width: 200px; }
+    .grid-filter-form .filter-row--label-extended span.filter--checkbox { flex: 0 0 auto; min-width: 120px; }
+    .grid-filter-form .filter-row--label-extended .filter--reset { margin-left: auto; }
+    .panelCheck { display: flex; align-items: flex-start; gap: 7px; margin: 0 -4px; padding: 2px 4px; font-size: 12px; line-height: 16px; color: #47535f; }
+    .panelCheck input { flex: 0 0 auto; margin: 1px 0 0; }
+    .section-header h6 { margin: 8px 0; font-size: 15px; }
     .filter-range { display: flex; gap: 8px; }
     .filter-range--field { flex: 1; }
     .filter-range--input { width: 100%; height: 40px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; padding: 0 10px; box-sizing: border-box; }
@@ -61,6 +69,25 @@
   <div id="contentAlign" data-layout="full">
     <div id="bodyPanel">
       <form id="grid-form-finder" class="grid-filter-form" style="display:none">
+        <div class="section-header"><h6>売上ランキングと価格タイプ</h6></div>
+        <div class="filter-row filter-row--matrix" data-csvtype="SALES" id="filter-row--matrix-SALES">
+          <div class="filter-row--label filter-row--label-extended">
+            <span><b>売れ筋ランキング #</b>&emsp;<i class="icon icon-question" title="ヘルプ">?</i></span>
+            <span class="filter--checkbox"><span class="panelCheck"><input type="checkbox" id="boolean-SALES_outOfStock-checkbox" name="boolean-SALES_outOfStock"><label for="boolean-SALES_outOfStock-checkbox">売れ筋ランキングなし</label></span><input type="hidden" value="" name="boolean-SALES_outOfStock"></span>
+            <span class="filter--checkbox"><span class="panelCheck"><input type="checkbox" id="boolean-SALES_isLowest-checkbox" name="boolean-SALES_isLowest"><label for="boolean-SALES_isLowest-checkbox">最低価格</label></span><input type="hidden" value="" name="boolean-SALES_isLowest"></span>
+            <span class="filter--checkbox"><span class="panelCheck"><input type="checkbox" id="boolean-SALES_isLowest90-checkbox" name="boolean-SALES_isLowest90"><label for="boolean-SALES_isLowest90-checkbox">最低90日間</label></span><input type="hidden" value="" name="boolean-SALES_isLowest90"></span>
+            <span class="filter--reset">行をリセット</span>
+          </div>
+          <div>
+            <div class="filter-range" title="現在">
+              <div class="filter-range--label"><span>現在</span></div>
+              <div class="filter-range">
+                <div class="filter-range--field"><input class="filter-range--input" type="text" placeholder="から"></div>
+                <div class="filter-range--field"><input class="filter-range--input" type="text" placeholder="まで"></div>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="filter-row">
           <div class="filter-row--label">カテゴリ</div>
           <div class="filter-text--wrapper">
@@ -141,7 +168,7 @@
 <script>
   (function () {
     const q = new URLSearchParams(location.search);
-    if (q.get('view') === 'filter') {
+    if (q.get('view') === 'filter' || q.get('view') === 'salesheader') {
       const form = document.getElementById('grid-form-finder');
       form.style.display = 'block';
     }
