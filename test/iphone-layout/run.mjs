@@ -62,6 +62,16 @@ async function measure(page) {
       if (r.right > W + 2 || r.left < -2) wide.push({ sel: e.id ? '#' + e.id : e.className, w: Math.round(r.width), r: Math.round(r.right) });
       if (wide.length > 12) break;
     }
+    const header = document.querySelector('#filter-row--matrix-SALES .filter-row--label-extended');
+    const hcs = header ? getComputedStyle(header) : null;
+    const checks = [...document.querySelectorAll('#filter-row--matrix-SALES input[type=checkbox]')].map(cb => {
+      const wrap = cb.closest('.filter--checkbox, .panelCheck') || cb.parentElement;
+      const r = wrap.getBoundingClientRect();
+      return {
+        lab: (wrap.querySelector('label')?.textContent || '').trim(),
+        x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height),
+      };
+    });
     return {
       inner: W,
       innerH: window.innerHeight,
@@ -76,12 +86,15 @@ async function measure(page) {
       bar: box('.kfm-bottombar'),
       contentAlign: box('#contentAlign'),
       filterInput: box('.filter-input'),
+      headerDisplay: hcs && hcs.display,
+      headerDir: hcs && hcs.flexDirection,
+      checks,
       wide,
     };
   });
 }
 
-function ok(m, d, landscape) {
+function ok(m, d, landscape, view) {
   const fail = [];
   if (!m.kfm) fail.push('html.kfm missing');
   if (!landscape && !m.finder) fail.push('html.kfm-finder missing');
@@ -93,6 +106,17 @@ function ok(m, d, landscape) {
   if (m.pager && (m.pager.l < -1 || m.pager.r > m.inner + 1)) fail.push('pager overflows: ' + JSON.stringify(m.pager));
   if (m.filterInput && m.filterInput.w > m.inner + 1) fail.push('filter-input still ' + m.filterInput.w + 'px');
   if (m.contentAlign && m.contentAlign.w > m.inner + 1) fail.push('contentAlign wider than viewport: ' + m.contentAlign.w);
+  if (view === 'filter' || view === 'salesheader') {
+    if (!m.checks || m.checks.length < 3) fail.push('sales-header checkboxes missing: ' + JSON.stringify(m.checks));
+    else {
+      const ys = m.checks.map(c => c.y);
+      const xs = m.checks.map(c => c.x);
+      for (let i = 1; i < ys.length; i++) {
+        if (ys[i] < ys[i - 1] + 20) fail.push('header checkboxes not stacked (y=' + ys.join(',') + ')');
+        if (Math.abs(xs[i] - xs[0]) > 8) fail.push('header checkboxes not left-aligned (x=' + xs.join(',') + ')');
+      }
+    }
+  }
   return fail;
 }
 
@@ -108,11 +132,11 @@ async function runDevice(browser, base, d, view, landscape) {
     screen: { width: w, height: h },
   });
   const page = await ctx.newPage();
-  const q = view === 'filter' ? '?view=filter' : '';
+  const q = (view === 'filter' || view === 'salesheader') ? '?view=' + view : '';
   await page.goto(base + '/test/iphone-layout/mock.html' + q + '#!finder', { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(800);
   const m = await measure(page);
-  const fails = ok(m, d, landscape);
+  const fails = ok(m, d, landscape, view);
   const tag = d.name + (landscape ? '-land' : '') + (view === 'filter' ? '-filter' : '');
   const shot = join(OUT, tag + '.png');
   await page.screenshot({ path: shot, fullPage: false });
@@ -136,9 +160,9 @@ async function main() {
   const results = [];
   for (const d of DEVICES) {
     results.push(await runDevice(browser, base, d, 'results', false));
-    if (d.name === 'promax16' || d.name === 'se') {
+    if (d.name === 'promax16' || d.name === 'se' || d.name === 'iphone16') {
       results.push(await runDevice(browser, base, d, 'filter', false));
-      results.push(await runDevice(browser, base, d, 'results', true));
+      if (d.name !== 'iphone16') results.push(await runDevice(browser, base, d, 'results', true));
     }
   }
   await browser.close();
@@ -158,6 +182,7 @@ async function main() {
     promax16: 'iphone_16_pro_max.png',
     'promax16-land': 'iphone_16_pro_max_landscape.png',
     'se-filter': 'iphone_se_filters.png',
+    'iphone16-filter': 'iphone_16_filters.png',
     'promax16-filter': 'iphone_16_pro_max_filters.png',
   };
   for (const r of results) {

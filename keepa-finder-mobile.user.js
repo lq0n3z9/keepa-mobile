@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.22
+// @version      0.1.23
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -84,7 +84,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.22';
+  const VERSION = 'v0.1.23';
   // v0.1.17: iOS はスクロールでアドレスバーが伸び縮みするたび・キーボード開閉のたびに resize が来る。
   // 高さだけの変化では重い作り直しをしない（スクロールのカクつきの原因）
   // v0.1.17: 同じクラスを付け外しし直さない（html のクラス書き換えはページ全体の再計算になる。付け外しの無限ループでスクロールが重かった）
@@ -632,7 +632,10 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  html.kfm.kfm-finder body .filter-row .filter-range--input,html.kfm.kfm-finder body .filter-row .filter-input,
  html.kfm.kfm-finder body .filter-row .filter-text{width:100%!important;max-width:100%!important;flex:1 1 100%!important;float:none!important;box-sizing:border-box!important}
  html.kfm.kfm-finder body .filter-row .filter-range--field{flex:1 1 45%!important;width:auto!important;min-width:0!important;max-width:none!important}
- html.kfm.kfm-finder body .filter-row--label,html.kfm.kfm-finder body .filter-row--label-extended{display:block!important;width:100%!important;font-weight:600;margin:4px 0}
+ html.kfm.kfm-finder body .filter-row--label{display:block!important;width:100%!important;font-weight:600;margin:4px 0}
+ /* v0.1.23: Keepa の label-extended は横並び+min-width でチェックが折り返す。見出し内は縦一列に固定 */
+ html.kfm.kfm-finder body .filter-row--label-extended{display:flex!important;flex-direction:column!important;flex-wrap:nowrap!important;
+   align-items:stretch!important;gap:8px!important;width:100%!important;font-weight:600;margin:4px 0}
  html.kfm.kfm-finder body .filter-range,html.kfm.kfm-finder body .filter-range.narrow{display:block!important;width:100%!important;margin:4px 0!important;float:none!important}
  html.kfm.kfm-finder body .filter-range--seg{display:flex!important;flex-wrap:wrap;align-items:center;gap:6px;width:100%!important;margin:3px 0}
  html.kfm.kfm-finder body .filter-range--seg-label,html.kfm.kfm-finder body .filter-range--label{display:block!important;width:100%!important;font-size:12px;color:#555}
@@ -753,8 +756,19 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  html.kfm body .filter-actions.kfm-bottombar .filter-layout{order:1!important}
  html.kfm input,html.kfm select,html.kfm textarea{font-size:16px!important;-webkit-text-size-adjust:100%}
  html.kfm .filter-row,html.kfm .filter-range,html.kfm .filter-text,html.kfm .filter-input{zoom:1!important;transform:none!important}
- html.kfm .filter-row .filter-row--label,html.kfm .filter-row .filter-row--label-extended{display:block!important;width:100%!important;
+ html.kfm .filter-row .filter-row--label{display:block!important;width:100%!important;
    flex:0 0 100%!important;grid-column:1/-1!important;float:none!important;margin:0 0 6px!important;white-space:normal!important}
+ html.kfm .filter-row .filter-row--label-extended{display:flex!important;flex-direction:column!important;flex-wrap:nowrap!important;
+   align-items:stretch!important;gap:8px!important;width:100%!important;flex:0 0 100%!important;grid-column:1/-1!important;
+   float:none!important;margin:0 0 6px!important;white-space:normal!important}
+ html.kfm .filter-row .filter-row--label-extended>span:first-child,
+ html.kfm .filter-row .filter-row--label-extended span.filter--checkbox,
+ html.kfm .filter-row .filter-row--label-extended .filter--reset,
+ html.kfm .filter-row .filter-row--label-extended .kfm-vlist{flex:0 0 auto!important;min-width:0!important;width:100%!important;
+   max-width:100%!important;margin-left:0!important;box-sizing:border-box!important}
+ html.kfm .filter-row .filter-row--label-extended span.filter--checkbox,
+ html.kfm .filter-row .filter-row--label-extended .panelCheck{display:flex!important;align-items:center!important;
+   white-space:normal!important;min-width:0!important}
  html.kfm .filter-row .kfm-checks,html.kfm .filter-row .filter-values,html.kfm .filter-row .filter-boolean{display:grid!important;
    grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px 12px!important;width:100%!important;align-items:center}
  html.kfm .filter-row .kfm-checks>.filter-row--label,html.kfm .filter-row .kfm-checks>.filter-row--label-extended{grid-column:1/-1!important}
