@@ -34,7 +34,8 @@
     .filter-range { display: flex; gap: 8px; }
     .filter-range--field { flex: 1; }
     .filter-range--input { width: 100%; height: 40px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; padding: 0 10px; box-sizing: border-box; }
-    .filter-actions { display: flex; align-items: center; gap: 8px; background: #eef2f7; padding: 14px 18px; border: 1px solid #e0e7ee; border-left: 4px solid #256a93; border-radius: 10px 10px 0 0; position: sticky; bottom: 0; }
+    /* Keepa / Safari: overflow-x hidden on a sticky bar clips an absolutely-positioned chevron above it */
+    .filter-actions { display: flex; align-items: center; gap: 8px; background: #eef2f7; padding: 14px 18px; border: 1px solid #e0e7ee; border-left: 4px solid #256a93; border-radius: 10px 10px 0 0; position: sticky; bottom: 0; overflow-x: hidden; }
     .content-jump { display: none; }
     .filter-actions__trailing { display: flex; gap: 8px; align-items: center; }
     .filter-jump { border: none; border-bottom: 1px solid #8ab; width: 100%; font-size: 14px; padding: 8px 4px; }

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.24
+// @version      0.1.25
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -84,14 +84,26 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.24';
+  const VERSION = 'v0.1.25';
   // v0.1.17: iOS はスクロールでアドレスバーが伸び縮みするたび・キーボード開閉のたびに resize が来る。
   // 高さだけの変化では重い作り直しをしない（スクロールのカクつきの原因）
   // v0.1.17: 同じクラスを付け外しし直さない（html のクラス書き換えはページ全体の再計算になる。付け外しの無限ループでスクロールが重かった）
   const kc = (el, c, on) => { if (!el || !el.classList) return; on = !!on; if (el.classList.contains(c) !== on) el.classList.toggle(c, on); };
   const kfmLastW = {};
   const kfmWidthChanged = k => { const w = window.innerWidth; if (kfmLastW[k] === w) return false; kfmLastW[k] = w; return true; };
-  const onFinder = () => /^#!finder/i.test(location.hash);
+  // v0.1.25: hash が #!finder 以外でも、ファインダー DOM があれば折りたたみを付ける。
+  // 他タブ（#!deals 等）は誤爆しない。
+  const finderHash = () => /^#!finder/i.test(location.hash || '');
+  const finderDom = () => !!(document.getElementById('filterSubmit')
+    || document.getElementById('grid-form-finder')
+    || document.getElementById('filterForm')
+    || document.querySelector('.filter-actions #filterSubmit'));
+  const onFinder = () => {
+    if (finderHash()) return true;
+    const h = location.hash || '';
+    if (/^#![a-z]+/i.test(h)) return false;
+    return finderDom();
+  };
   const onProduct = () => /^#!product/i.test(location.hash);
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
   const cssEsc = s => { try { return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/[^a-zA-Z0-9_-]/g, '\\$&'); } catch (e) { return String(s); } };
@@ -126,22 +138,21 @@
    max-height:50vh;overflow-y:auto!important;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;background:#fff!important;border:1px solid #d0d5dd;border-radius:12px;box-shadow:0 -6px 24px rgba(0,0,0,.16);box-sizing:border-box;z-index:5}
  html.kfm-kb body .kfm-bottombar.kfm-kb-host>*:not(:focus-within){display:none!important}
  html.kfm-kb body .kfm-bottombar.kfm-kb-host .content-jump{max-height:calc(var(--kfm-vvh,60vh) - 72px)!important}
- /* v0.1.21: 下パネルの開閉 */
+ /* v0.1.25: 山形は body 直下の position:fixed。パネル内の absolute は overflow / 再描画で消える */
  #kfm-bb-tog{display:none}
- html.kfm.kfm-finder body .kfm-bottombar{overflow:visible!important}
- html.kfm.kfm-finder body .kfm-bottombar #kfm-bb-tog{display:flex;position:absolute;left:50%;top:-15px;transform:translateX(-50%);width:44px;height:22px;padding:0;margin:0;
-   align-items:center;justify-content:center;border-radius:11px;border:1px solid rgba(255,255,255,.7);color:#5f6b7a;cursor:pointer;z-index:2;
+ html.kfm #kfm-bb-tog{display:flex;position:fixed;left:50%;bottom:calc(var(--kfm-bbh,120px) - 7px);transform:translateX(-50%);width:44px;height:22px;padding:0;margin:0;
+   align-items:center;justify-content:center;border-radius:11px;border:1px solid rgba(255,255,255,.7);color:#5f6b7a;cursor:pointer;z-index:2147483645;
    background:rgba(255,255,255,.62);-webkit-backdrop-filter:blur(14px) saturate(180%);backdrop-filter:blur(14px) saturate(180%);
-   box-shadow:0 2px 8px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.9);-webkit-tap-highlight-color:transparent;flex:none!important;order:-1}
- html.kfm.kfm-finder body .kfm-bottombar #kfm-bb-tog::before{content:'';position:absolute;inset:-10px -8px}
- html.kfm.kfm-finder body .kfm-bottombar #kfm-bb-tog svg{transition:transform .22s cubic-bezier(.2,.8,.2,1)}
- html.kfm-bb-min.kfm-finder body .kfm-bottombar #kfm-bb-tog svg{transform:rotate(180deg)}
- html.kfm-bb-min.kfm-finder body .kfm-bottombar>*:not(.filter-actions__trailing):not(#kfm-bb-tog){display:none!important}
- html.kfm-bb-min.kfm-finder body .kfm-bottombar .filter-actions__trailing>*:not(#totalResultsQuery):not(#filterSubmit){display:none!important}
- html.kfm-bb-min.kfm-finder body .kfm-bottombar .filter-actions__trailing{flex-wrap:nowrap!important}
- html.kfm-bb-min.kfm-finder body .kfm-bottombar #filterSubmit{flex:1 1 auto!important;width:auto!important;min-width:0!important}
- html.kfm-bb-min.kfm-finder body .kfm-bottombar{padding-top:12px!important}
- html.kfm-kb body .kfm-bottombar #kfm-bb-tog{display:none!important}
+   box-shadow:0 2px 8px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.9);-webkit-tap-highlight-color:transparent;flex:none!important}
+ html.kfm #kfm-bb-tog::before{content:'';position:absolute;inset:-10px -8px}
+ html.kfm #kfm-bb-tog svg{transition:transform .22s cubic-bezier(.2,.8,.2,1)}
+ html.kfm-bb-min #kfm-bb-tog svg{transform:rotate(180deg)}
+ html.kfm-bb-min body .kfm-bottombar>*:not(.filter-actions__trailing){display:none!important}
+ html.kfm-bb-min body .kfm-bottombar .filter-actions__trailing>*:not(#totalResultsQuery):not(#filterSubmit){display:none!important}
+ html.kfm-bb-min body .kfm-bottombar .filter-actions__trailing{flex-wrap:nowrap!important}
+ html.kfm-bb-min body .kfm-bottombar #filterSubmit{flex:1 1 auto!important;width:auto!important;min-width:0!important}
+ html.kfm-bb-min body .kfm-bottombar{padding-top:12px!important}
+ html.kfm-kb #kfm-bb-tog,html.kfm:not(:has(.kfm-bottombar)) #kfm-bb-tog{display:none!important}
  html.kfm.kfm-finder .grid-filter-form,html.kfm.kfm-finder #grid-form-finder{padding-bottom:calc(var(--kfm-bbh,120px) + 24px)!important}
  html.kfm-kb #kfm-ac-done{bottom:var(--kfm-kb,0px)!important;padding-bottom:10px!important}
  html.kfm-kb body .generalOverlay:has(.grid-filter-form--view-only),html.kfm-kb body .generalOverlay.kfm-afov{top:calc(var(--kfm-vvtop,0px) + 8px)!important;max-height:calc(var(--kfm-vvh,100vh) - 16px)!important}
@@ -836,8 +847,8 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-ac-done{position:fixed;left:0;right:0;bottom:0;z-index:2147483600;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(255,255,255,.96);border-top:1px solid #e5e5e5;box-shadow:0 -4px 16px rgba(0,0,0,.08);display:none}
  #kfm-ac-done.kfm-ac-done-on{display:block}
  #kfm-ac-done button{width:100%;min-height:48px;border:0;border-radius:12px;background:#1a73e8;color:#fff;font-size:17px;font-weight:700}
-  #kfm-ver{position:fixed;left:4px;bottom:calc(2px + env(safe-area-inset-bottom));z-index:2147483646;color:#aaa;font:400 10px -apple-system,sans-serif;pointer-events:none;background:transparent}
- html.kfm-finder #kfm-ver{display:none}
+  #kfm-ver{position:fixed;left:4px;bottom:calc(2px + env(safe-area-inset-bottom));z-index:2147483646;color:#aaa;font:400 10px -apple-system,sans-serif;pointer-events:auto;background:transparent;padding:8px 10px 8px 4px;-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+ #kfm-ver-dbg{position:fixed;left:8px;right:8px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:2147483647;max-height:45vh;overflow:auto;background:#111;color:#cfc;font:11px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-all;padding:10px;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.3)}
  #kfm-badge{position:fixed;left:6px;bottom:calc(70px + env(safe-area-inset-bottom));z-index:100000;background:rgba(26,127,55,.9);color:#fff;font:600 10px -apple-system,sans-serif;
    padding:3px 6px;border-radius:10px;transition:opacity .5s}
  #kfm-badge b{margin-left:6px;cursor:pointer}
@@ -864,7 +875,6 @@ html.kfm body .kfm-bottombar{left:0!important;right:0!important;bottom:0!importa
   overflow:visible!important;
   padding-left:max(8px,var(--kfm-sal))!important;padding-right:max(8px,var(--kfm-sar))!important;
   padding-bottom:calc(8px + var(--kfm-sab))!important}
-html.kfm body .kfm-bottombar #kfm-bb-tog{display:flex!important}
 #kfm-pager{left:max(8px,var(--kfm-sal))!important;right:max(8px,var(--kfm-sar))!important;width:auto!important;max-width:none!important}
 #kfm-list,html.kfm body .knav-row,html.kfm-manage,html.kfm-manage body{max-width:100%!important}
 html.kfm body .generalOverlay:has(.grid-filter-form--view-only),html.kfm body .generalOverlay.kfm-afov{
@@ -2067,7 +2077,8 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     setTimeout(schedule, 250);
   }
   function leaveFinder() {
-    ['kfm-sort', 'kfm-sheet', 'kfm-cols', 'kfm-ac-done'].forEach(i => { const e = document.getElementById(i); if (e && !(i === 'kfm-sheet' && onManage())) e.remove(); }); kc(document.documentElement, 'kfm-cols-open', false);
+    ['kfm-sort', 'kfm-sheet', 'kfm-cols', 'kfm-ac-done', 'kfm-bb-tog', 'kfm-ver-dbg'].forEach(i => { const e = document.getElementById(i); if (e && !(i === 'kfm-sheet' && onManage())) e.remove(); }); kc(document.documentElement, 'kfm-cols-open', false);
+    kc(document.documentElement, 'kfm-bb-min', false);
     const pg = document.getElementById('kfm-pager'); if (pg) pg.remove();
     document.querySelectorAll('.kfm-gridhost').forEach(w => w.classList.remove('kfm-gridhost'));
     const l = document.getElementById('kfm-list'); if (l) l.remove();
@@ -2184,21 +2195,25 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     // kfm-bottombar も折りたたみボタンも付かず、本体の position:sticky のままになる
     if (bar && bar !== document.body) { kc(bar, 'kfm-bottombar', true); bbToggle(bar); }
   }
-  // ---- v0.1.21: 下のパネルを畳める（畳むと「製品を探す」と件数だけ）。状態は覚えておく ----
-  let bbRO = null, bbObs = null;
+  // ---- v0.1.21 / v0.1.25: 下のパネルを畳める。山形は body に固定し、Keepa の再描画で消えたら付け直す ----
+  let bbRO = null, bbObs = null, bbWatchOn = false, bbBusy = false;
   function bbSetH(bar) {
+    if (!bar) return;
     const h = Math.ceil(bar.getBoundingClientRect().height || 0);
     if (h && document.documentElement.style.getPropertyValue('--kfm-bbh') !== h + 'px') document.documentElement.style.setProperty('--kfm-bbh', h + 'px');
   }
+  function bbLabel(min) {
+    const b = document.getElementById('kfm-bb-tog');
+    if (b) { b.setAttribute('aria-expanded', String(!min)); b.setAttribute('aria-label', min ? 'パネルを広げる' : 'パネルを畳む'); }
+  }
   function bbApply(bar, min, anim) {
     const H = document.documentElement;
-    if (H.classList.contains('kfm-bb-min') === min) return;
-    const from = anim ? bar.getBoundingClientRect().height : 0;
+    if (H.classList.contains('kfm-bb-min') === min) { bbLabel(min); return; }
+    const from = anim && bar ? bar.getBoundingClientRect().height : 0;
     kc(H, 'kfm-bb-min', min);
-    const b = bar.querySelector('#kfm-bb-tog');
-    if (b) { b.setAttribute('aria-expanded', String(!min)); b.setAttribute('aria-label', min ? 'パネルを広げる' : 'パネルを畳む'); }
+    bbLabel(min);
     try { document.cookie = 'kfmBbMin=' + (min ? '1' : '0') + '; max-age=31536000; path=/; SameSite=Lax'; } catch (e) {}   // Keepa は読み込み時に localStorage を消すので cookie に
-    if (anim && from && bar.animate) {
+    if (anim && from && bar && bar.animate) {
       const to = bar.getBoundingClientRect().height;
       if (Math.abs(to - from) > 2) {
         // 高さを変えるのではなく下からずらす（再レイアウトなしで滑らか）
@@ -2207,21 +2222,50 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     }
     bbSetH(bar);
   }
+  function bbMountToggle() {
+    let b = document.getElementById('kfm-bb-tog');
+    if (b && document.body && b.parentElement !== document.body) document.body.appendChild(b);
+    if (b) { bbLabel(document.documentElement.classList.contains('kfm-bb-min')); return b; }
+    if (!document.body) return null;
+    b = el('button'); b.type = 'button'; b.id = 'kfm-bb-tog';
+    b.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+    b.addEventListener('click', e => {
+      e.preventDefault(); e.stopPropagation();
+      const live = document.querySelector('.kfm-bottombar');
+      if (live) bbApply(live, !document.documentElement.classList.contains('kfm-bb-min'), true);
+    });
+    document.body.appendChild(b);
+    let min = false; try { min = /(?:^|;\s*)kfmBbMin=1(?:;|$)/.test(document.cookie); } catch (e) {}
+    kc(document.documentElement, 'kfm-bb-min', !min);   // bbApply が必ず反映するように逆にしてから
+    bbApply(document.querySelector('.kfm-bottombar'), min, false);
+    return b;
+  }
+  function bbWatch() {
+    if (bbWatchOn || !document.body) return;
+    bbWatchOn = true;
+    new MutationObserver(() => {
+      if (bbBusy || !mq.matches) return;
+      if (!onFinder()) {
+        const t = document.getElementById('kfm-bb-tog');
+        if (t) t.remove();
+        return;
+      }
+      const t = document.getElementById('kfm-bb-tog');
+      const barOk = !!document.querySelector('.kfm-bottombar');
+      if (barOk && t && t.parentElement === document.body) return;
+      bbBusy = true;
+      try { bottomBar(); } catch (e) {}
+      bbBusy = false;
+    }).observe(document.body, { childList: true, subtree: true });
+  }
   function bbToggle(bar) {
-    if (!bar.querySelector('#kfm-bb-tog')) {
-      const b = el('button'); b.type = 'button'; b.id = 'kfm-bb-tog';
-      b.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
-      b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); bbApply(bar, !document.documentElement.classList.contains('kfm-bb-min'), true); });
-      bar.appendChild(b);
-      let min = false; try { min = /(?:^|;\s*)kfmBbMin=1(?:;|$)/.test(document.cookie); } catch (e) {}
-      kc(document.documentElement, 'kfm-bb-min', !min);   // bbApply が必ず反映するように逆にしてから
-      bbApply(bar, min, false);
-    }
+    bbMountToggle();
     if (bbObs !== bar && window.ResizeObserver) {
       if (bbRO) bbRO.disconnect();
       bbRO = new ResizeObserver(() => bbSetH(bar)); bbRO.observe(bar); bbObs = bar;
     }
     bbSetH(bar);
+    bbWatch();
   }
 
   let badgeShown = false;
@@ -2790,9 +2834,52 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
   }, true));
   ['touchstart', 'focusin', 'input'].forEach(ev =>
     document.addEventListener(ev, e => { if (mq.matches) setDecimal(e.target && e.target.closest ? e.target.closest('input') : null); }, { capture: true, passive: true }));
+  function verDbgText() {
+    const H = document.documentElement;
+    const box = el => {
+      if (!el) return 'なし';
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      const p = el.parentElement;
+      return (el.id ? '#' + el.id : el.tagName) + ' parent=' + (p ? (p.id ? '#' + p.id : p.tagName) : '-') +
+        ' display=' + cs.display + ' pos=' + cs.position +
+        ' ' + Math.round(r.width) + 'x' + Math.round(r.height) +
+        ' @' + Math.round(r.left) + ',' + Math.round(r.top);
+    };
+    return [
+      VERSION,
+      'hash=' + location.hash,
+      'html=' + H.className,
+      'filterSubmit=' + !!document.getElementById('filterSubmit'),
+      'grid-form-finder=' + !!document.getElementById('grid-form-finder'),
+      'filterForm=' + !!document.getElementById('filterForm'),
+      'filter-actions=' + box(document.querySelector('.filter-actions')),
+      'kfm-bottombar=' + box(document.querySelector('.kfm-bottombar')),
+      'toggle=' + box(document.getElementById('kfm-bb-tog')),
+      '--kfm-bbh=' + (H.style.getPropertyValue('--kfm-bbh') || '(empty)'),
+      'cookie=' + (document.cookie || '').split(';').map(s => s.trim()).filter(s => /kfm/i.test(s)).join('; ')
+    ].join('\n');
+  }
+  function verShowDbg() {
+    let ov = document.getElementById('kfm-ver-dbg');
+    if (ov) { ov.remove(); return; }
+    ov = el('pre'); ov.id = 'kfm-ver-dbg'; ov.textContent = verDbgText();
+    ov.addEventListener('click', () => ov.remove());
+    document.body.appendChild(ov);
+  }
   function verBadge() {
     if (document.getElementById('kfm-ver') || !document.body) return;
     const v = document.createElement('div'); v.id = 'kfm-ver'; v.textContent = VERSION;
+    let press = 0;
+    const arm = () => { press = setTimeout(() => { press = 0; verShowDbg(); }, 650); };
+    const cancel = () => { if (press) { clearTimeout(press); press = 0; } };
+    v.addEventListener('touchstart', arm, { passive: true });
+    v.addEventListener('mousedown', arm);
+    v.addEventListener('touchend', cancel);
+    v.addEventListener('touchcancel', cancel);
+    v.addEventListener('mouseup', cancel);
+    v.addEventListener('mouseleave', cancel);
+    v.addEventListener('contextmenu', e => { e.preventDefault(); verShowDbg(); });
     document.body.appendChild(v);
   }
   // ---- v0.0.21: ページ全体の横はみ出し検出・修正 ----
