@@ -89,6 +89,17 @@ async function measure(page) {
       headerDisplay: hcs && hcs.display,
       headerDir: hcs && hcs.flexDirection,
       checks,
+      tog: !!document.getElementById('kfm-bb-tog'),
+      togVis: (() => {
+        const t = document.getElementById('kfm-bb-tog');
+        if (!t) return false;
+        const r = t.getBoundingClientRect();
+        const cs = getComputedStyle(t);
+        return cs.display !== 'none' && cs.visibility !== 'hidden' && r.width > 8 && r.height > 8;
+      })(),
+      bbMin: document.documentElement.classList.contains('kfm-bb-min'),
+      bbh: document.documentElement.style.getPropertyValue('--kfm-bbh'),
+      cookie: document.cookie,
       wide,
     };
   });
@@ -116,6 +127,9 @@ function ok(m, d, landscape, view) {
         if (Math.abs(xs[i] - xs[0]) > 8) fail.push('header checkboxes not left-aligned (x=' + xs.join(',') + ')');
       }
     }
+    if (!m.tog) fail.push('collapse toggle #kfm-bb-tog missing');
+    else if (!m.togVis) fail.push('collapse toggle not visible');
+    if (m.bar && m.bar.l > 2) fail.push('bottombar inset from left: ' + m.bar.l);
   }
   return fail;
 }
@@ -144,6 +158,49 @@ async function runDevice(browser, base, d, view, landscape) {
   return { tag, label: d.label, w, h, landscape, view, m, fails, shot };
 }
 
+async function runCollapse(browser, base, d) {
+  const ctx = await browser.newContext({
+    viewport: { width: d.w, height: d.h },
+    deviceScaleFactor: d.dpr,
+    isMobile: true,
+    hasTouch: true,
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+    screen: { width: d.w, height: d.h },
+  });
+  const page = await ctx.newPage();
+  const url = base + '/test/iphone-layout/mock.html?view=filter#!finder';
+  const fails = [];
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(800);
+  let m = await measure(page);
+  if (!m.tog || !m.togVis) fails.push('toggle missing/hidden before click');
+  if (m.bbMin) fails.push('started collapsed');
+  const expShot = join(OUT, d.name + '-bb-expanded.png');
+  await page.screenshot({ path: expShot, fullPage: false });
+  const hExp = parseFloat(m.bbh) || (m.bar && m.bar.h) || 0;
+  await page.click('#kfm-bb-tog');
+  await page.waitForTimeout(400);
+  m = await measure(page);
+  if (!m.bbMin) fails.push('did not collapse after click');
+  if (!/kfmBbMin=1/.test(m.cookie || '')) fails.push('cookie not set: ' + m.cookie);
+  const hMin = parseFloat(m.bbh) || (m.bar && m.bar.h) || 0;
+  if (hExp && hMin && hMin >= hExp - 4) fails.push('collapsed height not smaller: ' + hMin + ' vs ' + hExp);
+  const minShot = join(OUT, d.name + '-bb-collapsed.png');
+  await page.screenshot({ path: minShot, fullPage: false });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(800);
+  m = await measure(page);
+  if (!m.bbMin) fails.push('collapse did not persist after reload');
+  if (!m.tog || !m.togVis) fails.push('toggle missing after reload');
+  await page.click('#kfm-bb-tog');
+  await page.waitForTimeout(400);
+  m = await measure(page);
+  if (m.bbMin) fails.push('did not expand after second click');
+  if (!/kfmBbMin=0/.test(m.cookie || '')) fails.push('expand cookie not set: ' + m.cookie);
+  await ctx.close();
+  return { tag: d.name + '-collapse', label: d.label, w: d.w, h: d.h, landscape: false, view: 'collapse', m, fails, shot: minShot, expShot };
+}
+
 async function main() {
   await mkdir(OUT, { recursive: true });
   await mkdir(ART, { recursive: true });
@@ -162,6 +219,7 @@ async function main() {
     results.push(await runDevice(browser, base, d, 'results', false));
     if (d.name === 'promax16' || d.name === 'se' || d.name === 'iphone16') {
       results.push(await runDevice(browser, base, d, 'filter', false));
+      results.push(await runCollapse(browser, base, d));
       if (d.name !== 'iphone16') results.push(await runDevice(browser, base, d, 'results', true));
     }
   }
@@ -185,6 +243,20 @@ async function main() {
     'iphone16-filter': 'iphone_16_filters.png',
     'promax16-filter': 'iphone_16_pro_max_filters.png',
   };
+  for (const r of results) {
+    if (r.tag === 'promax16-collapse') {
+      if (r.expShot) await copyFile(r.expShot, join(ART, 'iphone_16_pro_max_panel_expanded.png'));
+      await copyFile(r.shot, join(ART, 'iphone_16_pro_max_panel_collapsed.png'));
+    }
+    if (r.tag === 'se-collapse') {
+      if (r.expShot) await copyFile(r.expShot, join(ART, 'iphone_se_panel_expanded.png'));
+      await copyFile(r.shot, join(ART, 'iphone_se_panel_collapsed.png'));
+    }
+    if (r.tag === 'iphone16-collapse') {
+      if (r.expShot) await copyFile(r.expShot, join(ART, 'iphone_16_panel_expanded.png'));
+      await copyFile(r.shot, join(ART, 'iphone_16_panel_collapsed.png'));
+    }
+  }
   for (const r of results) {
     if (map[r.tag]) await copyFile(r.shot, join(ART, map[r.tag]));
   }

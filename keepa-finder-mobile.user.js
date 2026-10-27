@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.23
+// @version      0.1.24
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -84,7 +84,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.23';
+  const VERSION = 'v0.1.24';
   // v0.1.17: iOS はスクロールでアドレスバーが伸び縮みするたび・キーボード開閉のたびに resize が来る。
   // 高さだけの変化では重い作り直しをしない（スクロールのカクつきの原因）
   // v0.1.17: 同じクラスを付け外しし直さない（html のクラス書き換えはページ全体の再計算になる。付け外しの無限ループでスクロールが重かった）
@@ -860,9 +860,11 @@ html.kfm:not(.kfm-product) .card.-w-min-800,html.kfm:not(.kfm-product) [class*="
 html.kfm:not(.kfm-product) .card.-w-flex{width:100%!important;max-width:100%!important}
 html.kfm:not(.kfm-product) .popup--medium{min-width:0!important;max-width:100%!important}
 html.kfm .knav--fixed,html.kfm .knav.knav--fixed{padding-top:var(--kfm-sat);padding-left:var(--kfm-sal);padding-right:var(--kfm-sar);box-sizing:border-box}
-html.kfm body .kfm-bottombar{left:0!important;right:0!important;width:auto!important;max-width:none!important;
+html.kfm body .kfm-bottombar{left:0!important;right:0!important;bottom:0!important;width:auto!important;max-width:none!important;
+  overflow:visible!important;
   padding-left:max(8px,var(--kfm-sal))!important;padding-right:max(8px,var(--kfm-sar))!important;
   padding-bottom:calc(8px + var(--kfm-sab))!important}
+html.kfm body .kfm-bottombar #kfm-bb-tog{display:flex!important}
 #kfm-pager{left:max(8px,var(--kfm-sal))!important;right:max(8px,var(--kfm-sar))!important;width:auto!important;max-width:none!important}
 #kfm-list,html.kfm body .knav-row,html.kfm-manage,html.kfm-manage body{max-width:100%!important}
 html.kfm body .generalOverlay:has(.grid-filter-form--view-only),html.kfm body .generalOverlay.kfm-afov{
@@ -2164,17 +2166,23 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     });
   }
   function bottomBar() {
-    const s = findByText(['製品を探す']).find(el => /button|a/i.test(el.tagName) || el.onclick || el.getAttribute('role') === 'button')
+    const s = document.getElementById('filterSubmit')
+      || findByText(['製品を探す']).find(el => /button|a/i.test(el.tagName) || el.onclick || el.getAttribute('role') === 'button')
       || findByText(['製品を探す'])[0];
     if (!s) return;
     s.classList.add('kfm-search');
-    let bar = s.parentElement;
-    for (let i = 0; bar && i < 4; i++) {
-      const t = norm(bar.textContent);
-      if (t.includes('フィルタービルダー') || t.includes('API クエリ') || t.includes('フィルターへジャンプ')) break;
-      bar = bar.parentElement;
+    let bar = s.closest('.filter-actions');
+    if (!bar) {
+      bar = s.parentElement;
+      for (let i = 0; bar && i < 4; i++) {
+        const t = norm(bar.textContent);
+        if (t.includes('フィルタービルダー') || t.includes('API クエリ') || t.includes('APIクエリ') || t.includes('フィルターへジャンプ')) break;
+        bar = bar.parentElement;
+      }
     }
-    if (bar && bar !== document.body && norm(bar.textContent).length < 200) { kc(bar, 'kfm-bottombar', true); bbToggle(bar); }
+    // v0.1.24: 文字数制限を外す。Keepa が .content-jump に全フィルター名を入れると 200 字を超え、
+    // kfm-bottombar も折りたたみボタンも付かず、本体の position:sticky のままになる
+    if (bar && bar !== document.body) { kc(bar, 'kfm-bottombar', true); bbToggle(bar); }
   }
   // ---- v0.1.21: 下のパネルを畳める（畳むと「製品を探す」と件数だけ）。状態は覚えておく ----
   let bbRO = null, bbObs = null;

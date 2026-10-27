@@ -34,7 +34,8 @@
     .filter-range { display: flex; gap: 8px; }
     .filter-range--field { flex: 1; }
     .filter-range--input { width: 100%; height: 40px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; padding: 0 10px; box-sizing: border-box; }
-    .filter-actions { display: flex; align-items: center; gap: 8px; background: #fff; padding: 10px; border-top: 1px solid #ccc; }
+    .filter-actions { display: flex; align-items: center; gap: 8px; background: #eef2f7; padding: 14px 18px; border: 1px solid #e0e7ee; border-left: 4px solid #256a93; border-radius: 10px 10px 0 0; position: sticky; bottom: 0; }
+    .content-jump { display: none; }
     .filter-actions__trailing { display: flex; gap: 8px; align-items: center; }
     .filter-jump { border: none; border-bottom: 1px solid #8ab; width: 100%; font-size: 14px; padding: 8px 4px; }
     .card.-w-min-800 { min-width: 800px; background: #fff; padding: 16px; }
@@ -155,9 +156,15 @@
         </div>
       </div>
       <div class="filter-actions">
-        <span class="tool__jumpfilter"><input class="filter-jump" placeholder="フィルターへジャンプ"></span>
-        <span class="filter-layout"><button type="button" id="filterLayoutToggle">フィルタービルダー</button></span>
+        <span class="tool__jumpfilter">
+          <input class="filter-jump" placeholder="フィルターへジャンプ">
+          <div class="content-jump"><div class="scroll">売上ランキングと価格タイプ タイトル、カテゴリ、属性 オファー数 Buy Box 中古 Buy Box 販売者ID さらに検索を絞り込みましょう 売れ筋ランキング 現在 30日平均 90日平均 180日平均 365日平均 1日間の下落 7日間の下落 30日間の下落 90日間の下落 カテゴリ ブランド タイトル 在庫切れ 最低価格 最低90日間 販売ランキング履歴 カテゴリ別ランキング サブカテゴリー</div></div>
+        </span>
+        <span class="filter-layout"><button type="button" id="filterLayoutToggle">フィルタービルダー<span class="filter-layout--badge">新機能</span></button></span>
+        <button type="button" id="filterAbout">概要</button>
+        <span><button type="button" id="filterQuery">APIクエリを表示する</button></span>
         <div class="filter-actions__trailing">
+          <span class="filter--reset filter-form--reset"><button type="button" class="filter-actions__action -destructive">フォーム全体をリセット</button></span>
           <span id="totalResultsQuery"><span class="filter-count__figure">6411</span></span>
           <button type="button" id="filterSubmit">製品を探す</button>
         </div>
