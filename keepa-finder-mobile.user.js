@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.25
-// @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・トラッキング設定・トラッキング整理など）
+// @version      0.1.26
+// @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・あとで見るリスト・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
 // @include      https://keepa.com/*
@@ -84,7 +84,11 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.25';
+  const VERSION = 'v0.1.26';
+  // 設定欄の初期表示用。キーは入れない。保存するまでこのURLへは送らない。
+  const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyi2br_ilYXZ4w_ne-x64eWk4wZF473W3zT5uRlXSeIeXIU6YJtNFiLaM9lkZnwg3sVrA/exec';
+  const KFM_TEST = /(?:^|[?&])kfmtest=1(?:&|$)/.test(location.search || '')
+    || /^(127\.0\.0\.1|localhost)$/.test(location.hostname || '');
   // v0.1.17: iOS はスクロールでアドレスバーが伸び縮みするたび・キーボード開閉のたびに resize が来る。
   // 高さだけの変化では重い作り直しをしない（スクロールのカクつきの原因）
   // v0.1.17: 同じクラスを付け外しし直さない（html のクラス書き換えはページ全体の再計算になる。付け外しの無限ループでスクロールが重かった）
@@ -123,7 +127,8 @@
 
  /* v0.1.17: 画面の高さはアドレスバー込みの vh ではなく、見えている高さ (dvh) で */
  #kfm-cols .kfm-cols-sh{height:92dvh;max-height:92dvh}
- #kfm-sheet .kfm-sh{max-height:75dvh} #kfm-tm-sheet .kfm-tm-box{max-height:85dvh}
+ #kfm-sheet .kfm-sh{max-height:75dvh} #kfm-sheet .kfm-sh.kfm-later-sheet{max-height:88dvh}
+ #kfm-tm-sheet .kfm-tm-box{max-height:85dvh}
  /* v0.1.17: キーボードが開いている間（html.kfm-kb）。--kfm-vvtop/--kfm-vvh = 見えている範囲、--kfm-kb = キーボードで隠れた高さ */
  html.kfm-kb #kfm-pager,html.kfm-kb #kfm-ver,html.kfm-kb #kfm-badge,html.kfm-kb #kfm-toast{visibility:hidden!important;pointer-events:none!important}
  html.kfm-kb body .kfm-bottombar:not(.kfm-kb-host){visibility:hidden!important;pointer-events:none!important}
@@ -242,13 +247,16 @@
  #kfm-sort button{flex:0 0 auto;border:1px solid #d6d9de;background:#fff;border-radius:16px;padding:6px 12px;font-size:13px;color:#333;white-space:nowrap}
  #kfm-sort .kfm-sort-main{font-weight:700;border-color:#36c;color:#36c}
  #kfm-sort button.on{background:#36c;color:#fff;border-color:#36c}
- #kfm-sheet{position:fixed;inset:0;z-index:2147483300;background:rgba(0,0,0,.35);display:flex;align-items:flex-end}
+ #kfm-sheet{position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.35);display:flex;align-items:flex-end}
  #kfm-sheet .kfm-sh{background:#fff;width:100%;max-height:75vh;border-radius:14px 14px 0 0;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+ #kfm-sheet .kfm-sh.kfm-later-sheet{max-height:88vh}
  #kfm-sheet .kfm-sh-top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px;border-bottom:1px solid #eee;font-weight:700}
  #kfm-sheet .kfm-sh-top button{border:1px solid #ccc;background:#f5f6f8;border-radius:16px;padding:6px 12px;font-size:14px}
  #kfm-sheet .kfm-sh-list{overflow-y:auto;-webkit-overflow-scrolling:touch}
- #kfm-sheet .kfm-sh-list div{padding:12px 14px;border-bottom:1px solid #f0f0f0;font-size:15px}
- #kfm-sheet .kfm-sh-list div.on{color:#36c;font-weight:700}
+ #kfm-sheet .kfm-sh-list > div{padding:12px 14px;border-bottom:1px solid #f0f0f0;font-size:15px}
+ #kfm-sheet .kfm-sh-list > div.on{color:#36c;font-weight:700}
+ #kfm-sheet .kfm-sh-list .kfm-li{padding:10px 12px;border-bottom:1px solid #f0f0f0;box-sizing:border-box}
+ #kfm-sheet .kfm-sh-list .kfm-sh-msg{padding:16px 12px;color:#555;border:0}
  html.kfm-finder .kfm-fe-bar{display:flex;gap:8px;align-items:center;padding:8px 4px}
  html.kfm-finder .kfm-fe-bar button{border:1px solid #ccc;background:#f5f6f8;border-radius:16px;padding:6px 12px;font-size:13px}
  html.kfm-finder .kfm-fe-bar button.on{background:#36c;color:#fff;border-color:#36c}
@@ -461,6 +469,13 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-list .kfm-a{margin:4px 0;font-size:13px;color:#555}
  #kfm-list .kfm-l{display:flex;gap:6px;flex-wrap:wrap;margin:4px 0 0}
  #kfm-list .kfm-l a{padding:6px 10px;border:1px solid #36c;border-radius:6px;font-size:13px;color:#36c;text-decoration:none}
+ #kfm-list .kfm-later{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0 0}
+ #kfm-list .kfm-later-add,#kfm-list .kfm-later-del,#kfm-list .kfm-later-has{
+   min-height:36px;padding:6px 12px;border-radius:8px;font-size:13px;font-weight:700;line-height:1.2;
+   box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+ #kfm-list .kfm-later-add{border:0;background:#1a73e8;color:#fff}
+ #kfm-list .kfm-later-has{border:0;background:#e6f4ea;color:#1a7f37}
+ #kfm-list .kfm-later-del{border:1px solid #d32f2f;background:#fff;color:#d32f2f}
  #kfm-list .kfm-g{display:block;width:100%;height:140px;margin:0 0 8px;background:#fafbfc;border:1px solid #e1e4e8;border-radius:8px;overflow:hidden}
  #kfm-list .kfm-g img{width:100%;height:100%;object-fit:fill;display:block}
  #kfm-list .kfm-f{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px}
@@ -502,15 +517,15 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-sheet .kfm-set-g{display:flex;flex-direction:column;gap:6px}
  #kfm-sheet .kfm-sh-q{margin:8px 12px;font-size:16px!important;padding:8px 10px;border:1px solid #ccc;border-radius:8px}
  #kfm-sheet .kfm-sh-link{font-size:14px;color:#1a73e8;align-self:center;text-decoration:none}
- #kfm-sheet .kfm-li{display:flex;align-items:flex-start;gap:10px}
- #kfm-sheet .kfm-li-th{flex:0 0 56px;width:56px;height:56px;object-fit:contain;border-radius:6px;background:#f5f5f5}
+ #kfm-sheet .kfm-li{display:flex;align-items:flex-start;gap:8px;flex-wrap:nowrap}
+ #kfm-sheet .kfm-li-th{flex:0 0 48px;width:48px;height:48px;object-fit:contain;border-radius:6px;background:#f5f5f5}
  #kfm-sheet .kfm-li-g{display:block;width:100%;height:auto;aspect-ratio:10/3;object-fit:contain;margin-top:6px;border:1px solid #eee;border-radius:6px;background:#fafbfc}
- #kfm-sheet .kfm-li-d{align-self:center}
+ #kfm-sheet .kfm-li-d{align-self:center;margin-left:0}
  #kfm-sheet .kfm-set-chk{display:flex;align-items:center;gap:6px;font-size:15px!important;color:#333!important;margin-top:10px!important}
  #kfm-sheet .kfm-set-chk input{width:22px!important;height:22px!important}
  #kfm-sheet .kfm-li-i{flex:1 1 auto;min-width:0}
- #kfm-sheet .kfm-li-t{display:block;font-weight:600;color:#222;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
- #kfm-sheet .kfm-li-m{font-size:12px;color:#777;margin-top:2px}
+ #kfm-sheet .kfm-li-t{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-weight:600;color:#222;text-decoration:none;overflow:hidden;overflow-wrap:anywhere;white-space:normal}
+ #kfm-sheet .kfm-li-m{font-size:12px;color:#777;margin-top:2px;overflow-wrap:anywhere}
  #kfm-sheet .kfm-li-d{flex:0 0 auto;border:1px solid #d32f2f;color:#d32f2f;background:#fff;border-radius:16px;padding:6px 12px;font-size:13px}
  #kfm-sheet .kfm-set{display:flex;flex-direction:column;gap:6px;padding:14px}
  #kfm-sheet .kfm-set label{font-size:13px;color:#555;margin-top:6px}
@@ -1132,6 +1147,7 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
       tr.addEventListener('click', () => { try { localStorage.setItem('kfmTrackReq', JSON.stringify({ asin: d.asin, t: Date.now() })); } catch (e) {} });
       l.appendChild(tr);
       meta.appendChild(l);
+      if (cfg.mode === 'gas') meta.appendChild(laterRow(d, c));
     }
     h.appendChild(meta); c.appendChild(h);
     const be = breakEven(d);
@@ -1201,19 +1217,57 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     const inner = el('div', 'kfm-inner');
     while (c.firstChild) inner.appendChild(c.firstChild);
     const acts = el('div', 'kfm-swacts');
-    const inList = cfg.mode === 'gas' && d.asin && listCache.has(d.asin);
+    const inList = cfg.mode === 'gas' && isListed(d.asin);
     if (inList) addDelBtn(acts, d, c);
     const act = el('button', 'kfm-swa'); act.type = 'button'; act.tabIndex = -1;
-    act.innerHTML = '<span class="kfm-swi">' + ICON_SEND + '</span><span class="kfm-swl"><span>Grok Botに</span><span>送る</span></span>';
-    onTap(act, () => sendCard(d, c));
-    acts.insertBefore(act, acts.firstChild);   // 左: 送る / 右端: 削除
+    if (cfg.mode === 'gas') {
+      if (inList) {
+        act.innerHTML = '<span class="kfm-swi">' + ICON_SEND + '</span><span class="kfm-swl"><span>既に</span><span>あります</span></span>';
+        onTap(act, () => { closeSwipe(); toast('既にあります', 'warn'); });
+      } else {
+        act.innerHTML = '<span class="kfm-swi">' + ICON_SEND + '</span><span class="kfm-swl"><span>あとで</span><span>見る</span></span>';
+        onTap(act, () => sendCard(d, c));
+      }
+    } else {
+      act.innerHTML = '<span class="kfm-swi">' + ICON_SEND + '</span><span class="kfm-swl"><span>Grok Botに</span><span>送る</span></span>';
+      onTap(act, () => sendCard(d, c));
+    }
+    acts.insertBefore(act, acts.firstChild);   // 左: 追加 / 右端: 削除
     c.dataset.sw = String(acts.children.length * 96);
     c.appendChild(acts); c.appendChild(inner);
-    if (cfg.mode === 'gas') { if (inList) markSent(c, '✓リストにあり'); }
+    if (cfg.mode === 'gas') { if (inList) markSent(c, '既にあります'); }
     else if (d.asin && sentSet.has(d.asin)) markSent(c);
     c.addEventListener('scroll', () => { if (c.scrollLeft) c.scrollLeft = 0; }, { passive: true });
     attachSwipe(c, inner);
     return c;
+  }
+  function isListed(asin) {
+    if (!asin) return false;
+    if (listCache.has(asin)) return true;
+    const e = existsCache.get(asin);
+    return !!(e && e.exists);
+  }
+  function laterRow(d, c) {
+    const row = el('div', 'kfm-later');
+    if (isListed(d.asin)) {
+      row.appendChild(el('span', 'kfm-later-has', '既にあります'));
+      const del = el('button', 'kfm-later-del', '削除'); del.type = 'button';
+      onTap(del, () => deleteItem(d.asin, d.title, c));
+      row.appendChild(del);
+    } else {
+      const add = el('button', 'kfm-later-add', 'あとで見る'); add.type = 'button';
+      onTap(add, () => sendCard(d, c));
+      row.appendChild(add);
+    }
+    return row;
+  }
+  function paintLaterState(c, d) {
+    if (!c) return;
+    const row = c.querySelector('.kfm-later');
+    if (row) row.replaceWith(laterRow(d, c));
+    const acts = c.querySelector('.kfm-swacts');
+    if (acts && isListed(d.asin)) addDelBtn(acts, d, c);
+    if (isListed(d.asin)) markSent(c, '既にあります');
   }
   // ---- スワイプ送信 ----
   function addDelBtn(acts, d, c) {
@@ -1307,14 +1361,17 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     inner.addEventListener('click', e => { if (moved) { e.preventDefault(); e.stopPropagation(); moved = false; } else if (swOpen === inner) { e.preventDefault(); e.stopPropagation(); closeSwipe(); } }, true);
   }
   // ---- 設定（GM ストレージ。URL・認証はファイルに含めない）----
+  const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, String(v)); } catch (e) {} };
   const gv = async (k, d) => {
     try { if (typeof GM !== 'undefined' && GM.getValue) return await GM.getValue(k, d); } catch (e) {}
     try { if (typeof GM_getValue === 'function') return GM_getValue(k, d); } catch (e) {}
-    return d;
+    return lsGet(k, d);
   };
   const sv = (k, v) => {
     try { if (typeof GM !== 'undefined' && GM.setValue) return GM.setValue(k, v); } catch (e) {}
     try { if (typeof GM_setValue === 'function') return GM_setValue(k, v); } catch (e) {}
+    lsSet(k, v);
   };
   let sentSet = new Set();
   gv('kfmSentAsins', '[]').then(v => { try { const a = typeof v === 'string' ? JSON.parse(v) : v; if (Array.isArray(a)) a.forEach(x => sentSet.add(x)); rendered = ''; schedule(); } catch (e) {} });
@@ -1340,10 +1397,18 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     clearTimeout(t._h); t._h = setTimeout(() => { t.style.opacity = '0'; }, 2000);
   }
   // 設定値（メモリにも保持）
-  const cfg = { mode: 'webhook', gasUrl: '', gasKey: '', listGraph: true, hand: 'right' };
+  const cfg = { mode: 'gas', gasUrl: '', gasKey: '', listGraph: true, hand: 'right' };
+  if (KFM_TEST) {
+    try {
+      const m = localStorage.getItem('kfmMode'); if (m) cfg.mode = m;
+      const u = localStorage.getItem('kfmGasUrl'); if (u) cfg.gasUrl = u;
+      const k = localStorage.getItem('kfmGasKey'); if (k) cfg.gasKey = k;
+      const g = localStorage.getItem('kfmListGraph'); if (g) cfg.listGraph = g !== 'off';
+    } catch (e) {}
+  }
   const applyHand = () => { const pg = document.getElementById('kfm-pager'); if (pg) pg.classList.toggle('kfm-hand-left', cfg.hand === 'left'); };
   (async () => {
-    cfg.mode = await gv('kfmMode', 'webhook') || 'webhook';
+    cfg.mode = await gv('kfmMode', 'gas') || 'gas';
     cfg.gasUrl = await gv('kfmGasUrl', '') || ''; cfg.gasKey = await gv('kfmGasKey', '') || '';
     cfg.listGraph = (await gv('kfmListGraph', 'on')) !== 'off';
     cfg.hand = (await gv('kfmHand', 'right')) === 'left' ? 'left' : 'right'; applyHand();
@@ -1365,8 +1430,8 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     const mk = (v, txt) => { const lb = el('label'); const r = el('input'); r.type = 'radio'; r.name = 'kfmMode'; r.value = v; r.checked = cfg.mode === v; lb.appendChild(r); lb.appendChild(document.createTextNode(' ' + txt)); modeRow.appendChild(lb); return r; };
     const rGas = mk('gas', 'あとで見るリストに保存（おすすめ）'); mk('webhook', 'Grok Botに直接送る');
     const gBox = el('div', 'kfm-set-g'), wBox = el('div', 'kfm-set-g');
-    const g1 = inp('url', cfg.gasUrl, 'https://script.google.com/macros/s/…/exec'), g2 = inp('password', cfg.gasKey, 'API_KEY');
-    [el('label', null, 'リストのURL（Web App URL）'), g1, el('label', null, '合言葉（API_KEY）'), g2].forEach(x => gBox.appendChild(x));
+    const g1 = inp('url', cfg.gasUrl || DEFAULT_GAS_URL, DEFAULT_GAS_URL), g2 = inp('password', cfg.gasKey, 'API_KEY（自分で貼り付け）');
+    [el('label', null, 'Web App URL'), g1, el('label', null, 'API_KEY（合言葉。このiPhoneの中だけに保存）'), g2].forEach(x => gBox.appendChild(x));
     const w1 = inp('url', url, 'https://...'), w2 = inp('password', auth, 'Bearer ...');
     [el('label', null, '送り先URL（Webhook URL）'), w1, el('label', null, '認証キー（Authorizationヘッダー。画面からそのまま貼り付け）'), w2].forEach(x => wBox.appendChild(x));
     const sync = () => { const g = rGas.checked; gBox.style.display = g ? '' : 'none'; wBox.style.display = g ? 'none' : ''; };
@@ -1381,7 +1446,9 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
       cfg.hand = hLeft.checked ? 'left' : 'right'; applyHand(); await sv('kfmHand', cfg.hand);
       cfg.listGraph = grc.checked; await sv('kfmListGraph', cfg.listGraph ? 'on' : 'off');
       tm.dry = prc.checked; await sv('kfmPractice', tm.dry ? 'on' : 'off'); try { tmBar(); } catch (e) {}
-      cfg.mode = rGas.checked ? 'gas' : 'webhook'; cfg.gasUrl = g1.value.trim(); cfg.gasKey = g2.value.trim();
+      cfg.mode = rGas.checked ? 'gas' : 'webhook';
+      cfg.gasUrl = g1.value.trim() || (rGas.checked ? DEFAULT_GAS_URL : '');
+      cfg.gasKey = g2.value.trim();
       await sv('kfmMode', cfg.mode); await sv('kfmGasUrl', cfg.gasUrl); await sv('kfmGasKey', cfg.gasKey);
       await sv('kfmWebhookUrl', w1.value.trim()); await sv('kfmWebhookAuth', normAuth(w2.value));
       sh.remove(); toast('保存しました', true);
@@ -1391,7 +1458,7 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     pr.appendChild(prc); pr.appendChild(document.createTextNode(' 練習モード（削除せずに動きだけ確かめる）'));
     const prh = el('div', 'kfm-set-note', 'トラッキング整理で、実際には削除せずに動きを確かめます。慣れたらオフにしてください。');
     [modeRow, gBox, wBox, handRow, pr, prh, save].forEach(x => form.appendChild(x));
-    form.appendChild(el('div', 'kfm-set-note', 'URLとキーはこのiPhoneの中だけに保存されます。スクリプトのファイルには入りません。'));
+    form.appendChild(el('div', 'kfm-set-note', 'Web App URL は最初から入っています。API_KEY は自分のApps Scriptの合言葉を貼り付けてください。どちらもこのiPhoneの中だけに保存され、スクリプトのファイルには入りません。'));
     form.appendChild(el('div', 'kfm-set-ver', 'バージョン ' + VERSION));
     box.appendChild(form);
     sh.addEventListener('click', e => { if (e.target === sh) sh.remove(); });
@@ -1399,7 +1466,10 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
   }
   // ---- Apps Script（Code.gs 準拠：キーは ?key=、GET action=list/exists、POST {action:add,item,mode} / {action:delete,asin}）----
   const listCache = new Map();   // asin -> item
+  const existsCache = new Map(); // asin -> { exists, t }
+  const EXISTS_TTL = 5 * 60 * 1000;
   const imgMap = new Map();      // asin -> 画像URL（端末内のみ・サーバー変更なし）
+  const lastTransport = { via: '', method: '', ctype: '', url: '' };
   function rememberImg(asin, src) {
     if (!asin || !src) return; imgMap.delete(asin); imgMap.set(asin, src);
     const arr = [...imgMap].slice(-500); imgMap.clear(); arr.forEach(([k, v]) => imgMap.set(k, v));
@@ -1412,24 +1482,114 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
   }
   let listLoaded = false;
   const gasApi = q => `${cfg.gasUrl}${cfg.gasUrl.includes('?') ? '&' : '?'}key=${encodeURIComponent(cfg.gasKey)}${q || ''}`;
+  function gasErr(r) {
+    const e = String((r && r.error) || '');
+    if (e === 'unauthorized' || /unauthor/i.test(e)) return '合言葉が違います（unauthorized）。設定の API_KEY を確かめてください';
+    if (e === 'network') return '送信に失敗しました。通信を確かめて、もう一度お試しください';
+    if (e === 'timeout') return '送信が時間切れになりました。もう一度お試しください';
+    if (e === 'empty' || e === 'bad response') return 'サーバーの応答が読めませんでした。Web App URL を確かめてください';
+    if (/^HTTP /.test(e)) return '送信に失敗しました（' + e + '）。Web App URL を確かめてください';
+    return '送信に失敗しました。設定を確かめてください';
+  }
+  function parseGas(t) {
+    const s = String(t == null ? '' : t).trim();
+    if (!s) return { ok: false, error: 'empty' };
+    if (/^unauthorized$/i.test(s)) return { ok: false, error: 'unauthorized' };
+    try { return JSON.parse(s); } catch (e) {
+      if (/unauthor/i.test(s)) return { ok: false, error: 'unauthorized' };
+      return { ok: false, error: 'bad response' };
+    }
+  }
+  // iOS Userscripts: GM.xmlHttpRequest があれば CORS/302 を避けられる。
+  // 無いときは text/plain 本文でプリフライトを出さない（application/json は OPTIONS が必要になり GAS で落ちやすい）。
   function gmReq(method, url, body) {
+    const data = body == null ? undefined : (typeof body === 'string' ? body : JSON.stringify(body));
+    const headers = data ? { 'Content-Type': 'text/plain;charset=utf-8' } : {};
+    lastTransport.via = ''; lastTransport.method = method; lastTransport.ctype = headers['Content-Type'] || ''; lastTransport.url = url;
     const xhr = (typeof GM !== 'undefined' && GM.xmlHttpRequest) ? GM.xmlHttpRequest.bind(GM) : (typeof GM_xmlhttpRequest === 'function' ? GM_xmlhttpRequest : null);
-    const parse = t => { try { return JSON.parse(t); } catch (e) { return { ok: false, error: 'bad response' }; } };
-    if (xhr) return new Promise(res => {
-      try {
-        const r = xhr({ method, url, headers: body ? { 'Content-Type': 'application/json' } : {}, data: body, timeout: 30000,
-          onload: x => res(x.status >= 200 && x.status < 300 ? parse(x.responseText) : { ok: false, error: 'HTTP ' + x.status }),
-          onerror: () => res({ ok: false, error: 'network' }), ontimeout: () => res({ ok: false, error: 'timeout' }) });
-        if (r && typeof r.then === 'function') r.then(x => x && x.responseText !== undefined && res(parse(x.responseText)), () => res({ ok: false, error: 'network' }));
-      } catch (e) { res({ ok: false, error: String(e) }); }
+    if (xhr) {
+      lastTransport.via = 'GM.xmlHttpRequest';
+      return new Promise(res => {
+        let done = false;
+        const fin = v => { if (done) return; done = true; res(v); };
+        try {
+          const r = xhr({ method, url, headers, data, timeout: 30000, redirect: 'follow',
+            onload: x => {
+              const st = x && x.status;
+              if (st >= 200 && st < 300) fin(parseGas(x.responseText));
+              else if (st === 0 && x && x.responseText) fin(parseGas(x.responseText));
+              else fin({ ok: false, error: st ? ('HTTP ' + st) : 'network' });
+            },
+            onerror: () => fin({ ok: false, error: 'network' }),
+            ontimeout: () => fin({ ok: false, error: 'timeout' }) });
+          if (r && typeof r.then === 'function') r.then(x => x && x.responseText !== undefined && fin(parseGas(x.responseText)), () => fin({ ok: false, error: 'network' }));
+        } catch (e) { fin({ ok: false, error: String(e) }); }
+      });
+    }
+    lastTransport.via = 'fetch';
+    return fetch(url, { method, body: data, headers, redirect: 'follow', mode: 'cors', credentials: 'omit' })
+      .then(async r => parseGas(await r.text()))
+      .catch(() => ({ ok: false, error: 'network' }));
+  }
+  function markExists(asin, exists, item) {
+    if (!asin) return;
+    existsCache.set(asin, { exists: !!exists, t: Date.now() });
+    if (exists && item) listCache.set(asin, item);
+    else if (exists && !listCache.has(asin)) listCache.set(asin, { asin });
+    else if (!exists) listCache.delete(asin);
+  }
+  let existsQueue = new Set(), existsTimer = 0, existsBusy = false;
+  function queueExists(asins) {
+    if (cfg.mode !== 'gas' || !cfg.gasUrl || !cfg.gasKey) return;
+    (asins || []).forEach(a => {
+      if (!a || listCache.has(a)) return;
+      const e = existsCache.get(a);
+      if (e && Date.now() - e.t < EXISTS_TTL) return;
+      existsQueue.add(a);
     });
-    return fetch(url, { method, body, headers: body ? { 'Content-Type': 'text/plain;charset=utf-8' } : {} }).then(r => r.json()).catch(e => ({ ok: false, error: String(e) }));
+    if (!existsQueue.size) return;
+    clearTimeout(existsTimer);
+    existsTimer = setTimeout(flushExists, 80);
+  }
+  async function flushExists() {
+    if (existsBusy) return;
+    const batch = [...existsQueue]; existsQueue.clear();
+    if (!batch.length || !cfg.gasUrl || !cfg.gasKey) return;
+    existsBusy = true;
+    try {
+      if (!listLoaded) {
+        const items = await refreshList();
+        if (items) {
+          const now = Date.now();
+          batch.forEach(a => existsCache.set(a, { exists: listCache.has(a), t: now }));
+          rendered = ''; try { schedule(); } catch (e) {}
+          return;
+        }
+      }
+      for (let i = 0; i < batch.length; i += 3) {
+        const slice = batch.slice(i, i + 3);
+        await Promise.all(slice.map(async asin => {
+          const r = await gmReq('GET', gasApi('&action=exists&asin=' + encodeURIComponent(asin)));
+          if (r && r.error === 'unauthorized') { toast(gasErr(r), false); return; }
+          if (r && typeof r.exists === 'boolean') markExists(asin, r.exists);
+        }));
+      }
+      rendered = ''; try { schedule(); } catch (e) {}
+    } finally { existsBusy = false; }
   }
   async function refreshList() {
     if (cfg.mode !== 'gas' || !cfg.gasUrl || !cfg.gasKey) return null;
     const r = await gmReq('GET', gasApi('&action=list'));
+    if (r && r.error === 'unauthorized') { listLoaded = false; return r; }
     if (!r || !r.ok || !Array.isArray(r.items)) return null;
-    listCache.clear(); r.items.forEach(it => it && it.asin && listCache.set(String(it.asin), it));
+    listCache.clear();
+    const now = Date.now();
+    r.items.forEach(it => {
+      if (!it || !it.asin) return;
+      const a = String(it.asin);
+      listCache.set(a, it);
+      existsCache.set(a, { exists: true, t: now });
+    });
     listLoaded = true; rendered = ''; try { schedule(); } catch (e) {}
     return r.items;
   }
@@ -1444,18 +1604,23 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     let r; try { r = await gmReq('POST', gasApi(), JSON.stringify({ action: 'delete', asin })); } catch (e) { r = { ok: false, error: String(e) }; }
     deleting.delete(asin); closeSwipe();
     if ((r && r.ok) || (r && r.notFound)) {
-      listCache.delete(asin);
-      if (c) { const b = c.querySelector('.kfm-sent'); if (b) b.remove(); const dl = c.querySelector('.kfm-swdel'); if (dl) dl.remove(); c.dataset.sw = String(c.querySelectorAll('.kfm-swa').length * 96); }
+      markExists(asin, false);
+      if (c) {
+        const b = c.querySelector('.kfm-sent'); if (b) b.remove();
+        const dl = c.querySelector('.kfm-swdel'); if (dl) dl.remove();
+        const later = c.querySelector('.kfm-later'); if (later) later.replaceWith(laterRow({ asin, title }, c));
+        c.dataset.sw = String(c.querySelectorAll('.kfm-swa').length * 96);
+      }
       rendered = c && c.isConnected ? listStamp() : ''; if (!rendered) schedule(); toast(r.ok ? 'リストから外しました' : 'もうリストにありませんでした', true); return true;
     }
     if (r && r.error) console.log('[kfm] delete error', r.error);
-    toast('リストから外せませんでした。通信を確かめて、もう一度お試しください', false); return false;
+    toast(gasErr(r), false); return false;
   }
   async function openListSheet() {
     const old = document.getElementById('kfm-sheet'); if (old) old.remove();
     if (cfg.mode !== 'gas' || !cfg.gasUrl || !cfg.gasKey) { openSettings(); return; }
     const sh = el('div'); sh.id = 'kfm-sheet';
-    const box = el('div', 'kfm-sh'); sh.appendChild(box);
+    const box = el('div', 'kfm-sh kfm-later-sheet'); sh.appendChild(box);
     const top = el('div', 'kfm-sh-top'); top.appendChild(el('span', null, 'あとで見るリスト'));
     const right = el('div'); right.style.display = 'flex'; right.style.gap = '6px';
     const web = el('a', 'kfm-sh-link', 'Webで開く'); web.href = gasApi(''); web.target = '_blank'; web.rel = 'noopener noreferrer';
@@ -1463,21 +1628,24 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     right.appendChild(web); right.appendChild(close); top.appendChild(right); box.appendChild(top);
     const q = el('input', 'kfm-sh-q'); q.type = 'search'; q.placeholder = 'タイトル・ASINで検索'; box.appendChild(q);
     const list = el('div', 'kfm-sh-list'); box.appendChild(list);
-    list.appendChild(el('div', null, '読み込み中…'));
+    list.appendChild(el('div', 'kfm-sh-msg', '読み込み中…'));
     sh.addEventListener('click', e => { if (e.target === sh) sh.remove(); });
     document.body.appendChild(sh);
-    const items = await refreshList() || [...listCache.values()];
+    const got = await refreshList();
+    if (got && got.error) { list.textContent = ''; list.appendChild(el('div', 'kfm-sh-msg', gasErr(got))); return; }
+    const items = Array.isArray(got) ? got : [...listCache.values()];
+    if (!Array.isArray(got) && !items.length) { list.textContent = ''; list.appendChild(el('div', 'kfm-sh-msg', '一覧を読めませんでした。Web App URL と通信を確かめてください')); return; }
     const draw = () => {
       list.textContent = '';
       const k = q.value.trim().toLowerCase();
       const rows = items.filter(it => !k || String(it.title || '').toLowerCase().includes(k) || String(it.asin).toLowerCase().includes(k));
-      if (!rows.length) { list.appendChild(el('div', null, '該当なし')); return; }
+      if (!rows.length) { list.appendChild(el('div', 'kfm-sh-msg', '該当なし')); return; }
       rows.forEach(it => {
         const r = el('div', 'kfm-li');
         const th = el('img', 'kfm-li-th'); th.loading = 'lazy'; th.alt = ''; th.referrerPolicy = 'no-referrer';
         th.src = thumbFor(String(it.asin));
         th.onerror = () => { const alt = `https://images-na.ssl-images-amazon.com/images/P/${it.asin}.09.MZZZZZZZ.jpg`;
-          if (th.src !== alt) th.src = alt; else th.style.visibility = 'hidden'; };
+          if (th.src !== alt) th.src = alt; else th.remove(); };
         r.appendChild(th);
         const info = el('div', 'kfm-li-i');
         const t = el('a', 'kfm-li-t', it.title || it.asin); t.href = it.keepaUrl || ('https://keepa.com/#!product/5-' + it.asin); t.target = '_blank'; t.rel = 'noopener';
@@ -1521,19 +1689,26 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
   }
   // v0.0.34: 送った1枚だけバッジと削除ボタンを付ける（一覧は作り直さない）
   function inListCard(c, d) {
-    if (c && c.isConnected) { markSent(c, '✓リストにあり'); const a = c.querySelector('.kfm-swacts'); if (a) addDelBtn(a, d, c); rendered = listStamp(); }
+    if (c && c.isConnected) { paintLaterState(c, d); rendered = listStamp(); }
     else { rendered = ''; schedule(); }
   }
   async function sendGas(d, c) {
     if (!cfg.gasUrl || !cfg.gasKey) { closeSwipe(); openSettings(); return; }
+    if (isListed(d.asin)) { closeSwipe(); inListCard(c, d); toast('既にあります', 'warn'); return; }
     sending.add(d.asin);
     const item = itemOf(d);
     if (d.img) rememberImg(d.asin, d.img);
+    const ex = await gmReq('GET', gasApi('&action=exists&asin=' + encodeURIComponent(d.asin)));
+    if (ex && ex.error === 'unauthorized') { sending.delete(d.asin); closeSwipe(); toast(gasErr(ex), false); return; }
+    if (ex && ex.exists) {
+      markExists(d.asin, true, Object.assign({}, item, { addedAt: ex.addedAt }));
+      sending.delete(d.asin); closeSwipe(); inListCard(c, d); toast('既にあります', 'warn'); return;
+    }
     const r = await gmReq('POST', gasApi(), JSON.stringify({ action: 'add', item, mode: 'reject' }));
     sending.delete(d.asin); closeSwipe();
-    if (r && r.ok && !r.duplicate) { listCache.set(d.asin, Object.assign({ addedAt: new Date().toISOString() }, item)); inListCard(c, d); toast('追加しました', true); }
-    else if (r && r.duplicate) { if (!listCache.has(d.asin)) listCache.set(d.asin, Object.assign({}, item, { addedAt: r.addedAt })); inListCard(c, d); toast(`すでにリストにあります（追加日: ${fmtDate(r.addedAt)}）`, 'warn'); }
-    else { if (r && r.error) console.log('[kfm] send error', r.error); toast('送れませんでした。設定を確かめてください', false); }
+    if (r && r.ok && !r.duplicate) { markExists(d.asin, true, Object.assign({ addedAt: new Date().toISOString() }, item)); inListCard(c, d); toast('追加しました', true); }
+    else if (r && r.duplicate) { markExists(d.asin, true, Object.assign({}, item, { addedAt: r.addedAt })); inListCard(c, d); toast('既にあります', 'warn'); }
+    else { if (r && r.error) console.log('[kfm] send error', r.error); toast(gasErr(r), false); }
   }
   async function sendCard(d, c) {
     if (!d.asin || sending.has(d.asin)) return;
@@ -1570,6 +1745,7 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     sortBar(list);
     list.appendChild(el('div', 'kfm-status', `${keys.length}${total ? ' / ' + total : ''} 件表示` + (harvesting ? '（読み込み中…）' : '')));
     keys.forEach(k => list.appendChild(card(cache.get(k))));
+    if (cfg.mode === 'gas') queueExists(keys.map(k => cache.get(k) && cache.get(k).asin).filter(Boolean));
     resetShift(list);
     clearTimeout(list._mh); list._mh = setTimeout(() => list.style.removeProperty('min-height'), 1500);   // 画像の読み込み中に高さが縮んで上に飛ぶのを防ぐ
     if (Math.abs(window.scrollY - keepY) > 2) window.scrollTo(0, keepY);
@@ -3554,6 +3730,14 @@ ${R('categorytree')} #grid-tools-categorytree .content-column{max-width:100%!imp
     window.addEventListener('resize', () => { if (kfmWidthChanged('sc')) schedule(); });
     document.addEventListener('focusout', () => setTimeout(schedule, 300), true);
     run();
+  }
+  if (KFM_TEST) {
+    window.__kfmTest = {
+      VERSION, DEFAULT_GAS_URL, cfg, listCache, existsCache, lastTransport,
+      openSettings, openListSheet, sendGas, deleteItem, refreshList, gmReq, gasErr,
+      queueExists, flushExists, isListed,
+      setCfg(p) { Object.assign(cfg, p || {}); }
+    };
   }
   kc(document.documentElement, 'kfm', isMobile());
   if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);

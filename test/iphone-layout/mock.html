@@ -126,15 +126,23 @@
               <div class="ag-header-cell" col-id="asin"><span class="ag-header-cell-text">ASIN</span></div>
               <div class="ag-header-cell" col-id="SALES_current"><span class="ag-header-cell-text">売れ筋ランキング 現在</span></div>
               <div class="ag-header-cell" col-id="BUY_BOX_SHIPPING_current"><span class="ag-header-cell-text">Buy Box 現在</span></div>
+              <div class="ag-header-cell" col-id="NEW_current"><span class="ag-header-cell-text">新品 現在</span></div>
+              <div class="ag-header-cell" col-id="monthlySold"><span class="ag-header-cell-text">月間販売数</span></div>
+              <div class="ag-header-cell" col-id="fbaFees"><span class="ag-header-cell-text">FBA手数料</span></div>
+              <div class="ag-header-cell" col-id="referralFeePercentage"><span class="ag-header-cell-text">紹介料率</span></div>
             </div>
           </div>
-          <div class="ag-center-cols-container" style="height:112px">
+          <div class="ag-center-cols-container" style="height:168px">
             <div class="ag-row" row-index="0" style="height:56px">
               <div class="ag-cell" col-id="imagesCSV"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" width="40" height="40" alt=""></div>
               <div class="ag-cell" col-id="title">ワイヤレスイヤホン ノイズキャンセリング</div>
               <div class="ag-cell" col-id="asin">B0TESTASIN</div>
               <div class="ag-cell" col-id="SALES_current" style="color:#8FBC8F">1,234</div>
               <div class="ag-cell" col-id="BUY_BOX_SHIPPING_current" style="color:#ff00b4">¥4,980</div>
+              <div class="ag-cell" col-id="NEW_current">¥5,280</div>
+              <div class="ag-cell" col-id="monthlySold">320</div>
+              <div class="ag-cell" col-id="fbaFees">¥480</div>
+              <div class="ag-cell" col-id="referralFeePercentage">10</div>
             </div>
             <div class="ag-row" row-index="1" style="height:56px">
               <div class="ag-cell" col-id="imagesCSV"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" width="40" height="40" alt=""></div>
@@ -142,6 +150,21 @@
               <div class="ag-cell" col-id="asin">B0CHARGER1</div>
               <div class="ag-cell" col-id="SALES_current" style="color:#8FBC8F">8,210</div>
               <div class="ag-cell" col-id="BUY_BOX_SHIPPING_current" style="color:#ff00b4">¥2,180</div>
+              <div class="ag-cell" col-id="NEW_current">¥2,280</div>
+              <div class="ag-cell" col-id="monthlySold">91</div>
+              <div class="ag-cell" col-id="fbaFees">¥310</div>
+              <div class="ag-cell" col-id="referralFeePercentage">8</div>
+            </div>
+            <div class="ag-row" row-index="2" style="height:56px">
+              <div class="ag-cell" col-id="imagesCSV"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==" width="40" height="40" alt=""></div>
+              <div class="ag-cell" col-id="title">ステンレス水筒 500ml 保温保冷</div>
+              <div class="ag-cell" col-id="asin">B0BOTTLE01</div>
+              <div class="ag-cell" col-id="SALES_current" style="color:#8FBC8F">3,450</div>
+              <div class="ag-cell" col-id="BUY_BOX_SHIPPING_current" style="color:#ff00b4">¥1,680</div>
+              <div class="ag-cell" col-id="NEW_current">¥1,780</div>
+              <div class="ag-cell" col-id="monthlySold">210</div>
+              <div class="ag-cell" col-id="fbaFees">¥290</div>
+              <div class="ag-cell" col-id="referralFeePercentage">10</div>
             </div>
           </div>
           <div class="ag-paging-panel">
@@ -181,6 +204,33 @@
       form.style.display = 'block';
     }
     if (!location.hash) location.hash = '#!finder';
+    const later = q.get('later') === '1' || q.get('kfmtest') === '1';
+    const gas = q.get('gas') || '';
+    const key = q.get('key') || '';
+    if (later) {
+      try {
+        localStorage.setItem('kfmMode', 'gas');
+        localStorage.setItem('kfmGasUrl', gas);
+        localStorage.setItem('kfmGasKey', key);
+        localStorage.setItem('kfmListGraph', 'off');
+      } catch (e) {}
+      window.__kfmXhrCalls = [];
+      window.GM = {
+        getValue: async (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } },
+        setValue: async (k, v) => { try { localStorage.setItem(k, String(v)); } catch (e) {} },
+        xmlHttpRequest: function (opts) {
+          window.__kfmXhrCalls.push({ method: opts.method, url: opts.url, headers: opts.headers || {}, data: opts.data || '' });
+          const x = new XMLHttpRequest();
+          x.open(opts.method || 'GET', opts.url, true);
+          Object.keys(opts.headers || {}).forEach(h => x.setRequestHeader(h, opts.headers[h]));
+          x.timeout = opts.timeout || 0;
+          x.onload = () => opts.onload && opts.onload({ status: x.status, responseText: x.responseText, finalUrl: opts.url });
+          x.onerror = () => opts.onerror && opts.onerror();
+          x.ontimeout = () => opts.ontimeout && opts.ontimeout();
+          x.send(opts.data || null);
+        }
+      };
+    }
   })();
 </script>
 <script src="../../keepa-finder-mobile.user.js"></script>
