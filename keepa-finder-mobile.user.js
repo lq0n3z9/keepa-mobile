@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.26
+// @version      0.1.27
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・あとで見るリスト・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -36,7 +36,9 @@
   ];
   const HIDE_FIELDS = [];              // 全項目展開時も隠したいもの
   const COLLAPSE_SECTIONS = true;      // フィルター節を最初は閉じる
-  const SECTION_TITLES = ['売上ランキングと価格タイプ', 'タイトル、カテゴリ、属性', 'オファー数',
+  // v0.1.27: Keepa 新アプリ（2026-11-19頃の build から）で第1節の見出しが
+  // 「売上ランキングと価格タイプ」→「売れ筋ランキングと価格タイプ」に変わった。旧名も残す
+  const SECTION_TITLES = ['売れ筋ランキングと価格タイプ', '売上ランキングと価格タイプ', 'タイトル、カテゴリ、属性', 'オファー数',
     'Buy Box 中古', 'Buy Box', '販売者ID', 'さらに検索を絞り込みましょう'];
   // ===========================
 
@@ -84,7 +86,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.26';
+  const VERSION = 'v0.1.27';
   // 設定欄の初期表示用。キーは入れない。保存するまでこのURLへは送らない。
   const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyi2br_ilYXZ4w_ne-x64eWk4wZF473W3zT5uRlXSeIeXIU6YJtNFiLaM9lkZnwg3sVrA/exec';
   const KFM_TEST = /(?:^|[?&])kfmtest=1(?:&|$)/.test(location.search || '')
@@ -104,6 +106,9 @@
     || document.querySelector('.filter-actions #filterSubmit'));
   const onFinder = () => {
     if (finderHash()) return true;
+    // v0.1.27: Keepa 新アプリは #!finder ではなく /finder のパスで開く（#!finder は /finder へリダイレクト）。
+    // ハッシュが無い通常遷移では finderDom() のタイミング頼みだったため、パスでも判定する
+    if (/^\/finder(\/|$)/.test(location.pathname || '')) return true;
     const h = location.hash || '';
     if (/^#![a-z]+/i.test(h)) return false;
     return finderDom();
@@ -663,6 +668,12 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  html.kfm.kfm-finder body .filter-row--label-extended{display:flex!important;flex-direction:column!important;flex-wrap:nowrap!important;
    align-items:stretch!important;gap:8px!important;width:100%!important;font-weight:600;margin:4px 0}
  html.kfm.kfm-finder body .filter-range,html.kfm.kfm-finder body .filter-range.narrow{display:block!important;width:100%!important;margin:4px 0!important;float:none!important}
+ /* v0.1.27: 新アプリのフォーム土台（#filterForm > section.card）と matrix 行の内側ラッパー。
+    matrix 行は .filter-range を横に並べる土台の上に乗るため、ラッパーごと1列に倒す */
+ html.kfm.kfm-finder body #filterForm{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+ html.kfm.kfm-finder body #filterForm section.card{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+ html.kfm.kfm-finder body .filter-row--matrix>div,html.kfm.kfm-finder body .filter-row>div{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;grid-template-columns:1fr!important;box-sizing:border-box!important}
+ html.kfm.kfm-finder body .filter-row--matrix .filter-range{display:block!important;width:100%!important;max-width:100%!important;margin:4px 0!important;float:none!important}
  html.kfm.kfm-finder body .filter-range--seg{display:flex!important;flex-wrap:wrap;align-items:center;gap:6px;width:100%!important;margin:3px 0}
  html.kfm.kfm-finder body .filter-range--seg-label,html.kfm.kfm-finder body .filter-range--label{display:block!important;width:100%!important;font-size:12px;color:#555}
  html.kfm.kfm-finder body .filter-range--field{flex:1 1 45%!important;width:auto!important;min-width:0}
@@ -2331,9 +2342,10 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
   }
   function sectionize() {
     SECTION_TITLES.forEach(title => {
-      document.querySelectorAll('h1,h2,h3,h4,h5,div,span,legend,td').forEach(h => {
+      // v0.1.27: 新アプリの節見出しは h6（.section-header 内）。h6 も対象に入れる
+      document.querySelectorAll('h1,h2,h3,h4,h5,h6,div,span,legend,td').forEach(h => {
         if (h.dataset.kfmSec || h.closest('.kfm-toggle,.ag-root-wrapper')) return;
-        const t = norm(h.textContent);
+        const t = norm(h.textContent).replace(/^[▸▾⌄∧˅∨>＞\s]+/, '');
         if (!(t === title || t.replace(/[！!]/g, '') === title)) return;
         if (h.querySelector('input,select')) return;
         // container = nearest ancestor that also contains filter rows
@@ -3634,7 +3646,9 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
   setInterval(() => { try { kfmCleanup(); } catch (e) {} }, 2000);   // 見張り: 画面が開いていないのに残ったロックを外す
   // ==KFM-TABS-BEGIN== v0.1.1: 製品ファインダー以外のタブのスマホ表示（v0.1.22: 600px メディアクエリを外し全 iPhone 幅で適用）
   const KFM_ROUTES = ['deals', 'tracking', 'manage', 'notification', 'viewer', 'bestseller', 'topseller', 'sellerlookup', 'categorytree'];
-  function routeName() { const m = /^#!([a-z]+)/i.exec(location.hash || ''); return m ? m[1].toLowerCase() : ''; }
+  function routeName() { const m = /^#!([a-z]+)/i.exec(location.hash || ''); if (m) return m[1].toLowerCase();
+    // v0.1.27: 新アプリはパス遷移（/finder, /deals 等）。ハッシュが無いときはパス先頭の語を使う
+    const p = /^\/([a-z]+)/i.exec(location.pathname || ''); return p ? p[1].toLowerCase() : ''; }
   function applyRoute() {
     const H = document.documentElement, r = routeName();
     [...H.classList].forEach(c => { if (c.indexOf('kfm-route-') === 0 && c !== 'kfm-route-' + r) H.classList.remove(c); });
