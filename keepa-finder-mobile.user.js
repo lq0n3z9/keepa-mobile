@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.27
+// @version      0.1.28
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・あとで見るリスト・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -62,13 +62,14 @@
     if (!head) return; // document-start では head がまだ無いことがある
     let m = document.querySelector('meta[name="viewport"]');
     if (!m) { m = document.createElement('meta'); m.name = 'viewport'; head.appendChild(m); }
-    // #!product: 画面幅に合わせ、ピンチで自由に拡大縮小。それ以外（#!finder 等）: 入力時の自動ズームを防ぐ固定倍率
-    // #!product: ビューポート幅をKeepa本来のPCレイアウト幅にし、Safariに全体を縮小表示させる（レイアウトは崩さない）＋自由ズーム
+    // v0.1.28: 製品ページもスマホレイアウトに合わせるため device-width（ピンチズームは許可）。
+    // それ以外（ファインダー等）: 入力時の自動ズームを防ぐ固定倍率
     // v0.1.22: viewport-fit=cover がないと env(safe-area-inset-*) が 0 のまま（Dynamic Island / ホームインジケータ）
     const cover = 'viewport-fit=cover';
+    const isProd = /^#!product/i.test(location.hash) || /^\/product(\/|$)/.test(location.pathname || '');
     const want = trackOn ? `width=device-width, initial-scale=1, maximum-scale=1, ${cover}`
-      : /^#!product/i.test(location.hash)
-      ? `width=${prodW}, minimum-scale=0.1, maximum-scale=5, user-scalable=yes, ${cover}`
+      : isProd
+      ? `width=device-width, initial-scale=1, user-scalable=yes, ${cover}`
       : `width=device-width, initial-scale=1, maximum-scale=1, ${cover}`;
     if (m.getAttribute('content') !== want) m.setAttribute('content', want);
   }
@@ -86,7 +87,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.27';
+  const VERSION = 'v0.1.28';
   // 設定欄の初期表示用。キーは入れない。保存するまでこのURLへは送らない。
   const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyi2br_ilYXZ4w_ne-x64eWk4wZF473W3zT5uRlXSeIeXIU6YJtNFiLaM9lkZnwg3sVrA/exec';
   const KFM_TEST = /(?:^|[?&])kfmtest=1(?:&|$)/.test(location.search || '')
@@ -113,7 +114,7 @@
     if (/^#![a-z]+/i.test(h)) return false;
     return finderDom();
   };
-  const onProduct = () => /^#!product/i.test(location.hash);
+  const onProduct = () => /^#!product/i.test(location.hash) || /^\/product(\/|$)/.test(location.pathname || '');   // v0.1.28: 新アプリは /product/5-ASIN のパス
   const norm = s => (s || '').replace(/\s+/g, ' ').trim();
   const cssEsc = s => { try { return (window.CSS && CSS.escape) ? CSS.escape(s) : String(s).replace(/[^a-zA-Z0-9_-]/g, '\\$&'); } catch (e) { return String(s); } };
   const has = (label, list) => list.some(k => norm(label).toLowerCase().replace(/\s/g, '')
@@ -464,6 +465,8 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  #kfm-pager .kfm-pg-num{min-width:58px;text-align:center;font-size:14px;font-weight:700;color:#222;font-variant-numeric:tabular-nums}
  html.kfm body .knav-row{max-width:100vw!important;overflow-x:auto!important;box-sizing:border-box}
  #kfm-list{display:block;width:100%;max-width:100vw;box-sizing:border-box;padding:4px 8px 90px;font-size:15px;overflow-x:hidden;overflow-x:clip;position:relative;left:0;margin-left:0!important;margin-right:0!important;transform:none!important}
+html.kfm-results .data-container:has(#kfm-list),html.kfm-results .grid-wrapper:has(#kfm-list){height:auto!important;min-height:0!important;max-height:none!important;flex:none!important}
+html.kfm-results .grid-wrapper:has(#kfm-list){overflow:visible!important}
  #kfm-list .kfm-status{font-size:13px;color:#666;padding:4px 2px 8px}
  #kfm-list .kfm-c{background:#fff;border:1px solid #d6d9de;border-radius:12px;margin:0 0 8px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
  #kfm-list .kfm-h{display:flex;gap:10px;align-items:flex-start;margin-bottom:8px}
@@ -821,9 +824,17 @@ html.kfm-track #track .tracking__settings-mode>div{width:100%!important}
  /* jQuery UI autocomplete: minimal */
  html.kfm .filter-text--autocomplete,html.kfm .ui-front{overflow:visible!important}
  html.kfm ul.ui-autocomplete{z-index:2147483647!important;background:#fff}
- /* product page (#!product): no layout surgery — native PC layout, scaled by viewport width */
- html.kfm.kfm-product,html.kfm.kfm-product body{max-width:none!important;width:auto!important;overflow:visible!important}
- html.kfm.kfm-product #topPanel,html.kfm.kfm-product #wrapper,html.kfm.kfm-product .mainContent,html.kfm.kfm-product .knav-row{max-width:none!important}
+ /* product page: v0.1.28 モバイルレイアウト対応（旧: PCレイアウトを縮小表示） */
+ html.kfm.kfm-product,html.kfm.kfm-product body{max-width:100%!important;width:100%!important;min-width:0!important;overflow-x:clip!important;box-sizing:border-box}
+ html.kfm.kfm-product #contentAlign,html.kfm.kfm-product #contentAlign[data-layout]{min-width:0!important;max-width:100%!important;width:100%!important;margin-left:0!important;margin-right:0!important;--col-min:0!important;--col-max:100%!important;--col-side:0px!important;box-sizing:border-box!important;left:auto!important}
+ html.kfm.kfm-product #content,html.kfm.kfm-product #bodyPanel,html.kfm.kfm-product #wrapper,html.kfm.kfm-product .mainContent,html.kfm.kfm-product .data-container{max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+ html.kfm.kfm-product .v-product{max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+ html.kfm.kfm-product .v-product img,html.kfm.kfm-product .v-product canvas,html.kfm.kfm-product .v-product svg,html.kfm.kfm-product .v-product video{max-width:100%!important;height:auto!important}
+ html.kfm.kfm-product #productTable{width:100%!important;min-height:0!important}
+ html.kfm.kfm-product #productInfoBox{max-width:100%!important;box-sizing:border-box!important}
+ html.kfm.kfm-product .productHead__acts{float:none!important}
+ html.kfm.kfm-product #tabHead{display:flex!important;flex-wrap:nowrap!important;overflow-x:auto!important;max-width:100%!important;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+ html.kfm.kfm-product .v-product table{display:block!important;overflow-x:auto!important;max-width:100%!important;-webkit-overflow-scrolling:touch}
  html.kfm.kfm-product .kfm-gridhost,html.kfm.kfm-product #kfm-list{display:none!important}
 
  /* v0.1.9: 列を設定 — ネイティブは常に画面外、シートで操作 */
@@ -1760,6 +1771,14 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     resetShift(list);
     clearTimeout(list._mh); list._mh = setTimeout(() => list.style.removeProperty('min-height'), 1500);   // 画像の読み込み中に高さが縮んで上に飛ぶのを防ぐ
     if (Math.abs(window.scrollY - keepY) > 2) window.scrollTo(0, keepY);
+    // v0.1.28: 新規検索の結果は先頭から表示する（フォーム下部で押して最下部の空白から始まるのを防ぐ）
+    try {
+      const nsAt = +(sessionStorage.getItem(NS_KEY) || 0);
+      if (nsAt && Date.now() - nsAt < 60000 && keys.length && finderResultsViewActive()) {
+        sessionStorage.removeItem(NS_KEY);
+        requestAnimationFrame(() => { const l2 = document.getElementById('kfm-list'); if (l2) window.scrollTo(0, Math.max(0, l2.getBoundingClientRect().top + window.scrollY - 8)); });
+      }
+    } catch (e) {}
   }
   // ---- アクティブなフィルター表示：全セルが未設定の行を隠す（:has の入れ子が使えないためクラス付与のみ）----
   function activeFilterPopup() {
@@ -2127,10 +2146,11 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
   function updatePager(wrap) {
     const panel = wrap.querySelector('.ag-paging-panel');
     let pg = document.getElementById('kfm-pager');
-    if (!panel) { if (pg) pg.remove(); return; }
+    if (!panel) { if (pg) pg.remove(); kc(document.documentElement, 'kfm-results', false); const vv0 = document.getElementById('kfm-ver'); if (vv0) vv0.style.bottom = ''; return; }
     // v0.1.14: フィルター画面では隠す（結果一覧のときだけ表示）
     if (!finderResultsViewActive()) {
       if (pg) { pg.style.display = 'none'; pg.setAttribute('aria-hidden', 'true'); }
+      kc(document.documentElement, 'kfm-results', false); const vv1 = document.getElementById('kfm-ver'); if (vv1) vv1.style.bottom = '';
       const l = document.getElementById('kfm-list'); if (l) l.style.paddingBottom = '';
       return;
     }
@@ -2193,6 +2213,9 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     const bh = bottomBarH();
     pg.style.bottom = `calc(${bh}px + 10px + ${bh ? '0px' : 'env(safe-area-inset-bottom)'})`;   // v0.1.5: 浮かせて下端・Safariのバーから離す
     pg.classList.toggle('kfm-pg-solo', !bh);
+    // v0.1.28: 版表示がページャーと被らないよう、ページャーの上端より上へ逃がす
+    kc(document.documentElement, 'kfm-results', true);
+    const vv = document.getElementById('kfm-ver'); if (vv) vv.style.bottom = (bh + (pg.offsetHeight || 72) + 18) + 'px';
     const l = document.getElementById('kfm-list'); if (l) padList(l);
   }
   // ---- v0.1.3: 製品ファインダーのページと表示位置を覚えて戻す（Keepa本物のページ送りボタンを押すだけ）----
@@ -2215,7 +2238,7 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     if (on && !root.classList.contains('kfm-restoring')) posHideAt = Date.now();
     kc(root, 'kfm-restoring', !!on);
   };
-  const posPending = () => { const r = posGet(); return !!(r && r.hash === location.hash && (r.page > 1 || r.asin || r.y)); };
+  const posPending = () => { const r = posGet(); return !!(r && (r.url ? r.url === location.pathname + location.hash : r.hash === location.hash) && (r.page > 1 || r.asin || r.y)); };   // v0.1.28: パス遷移でも一致を取る（url = pathname + hash）
   if (document.documentElement && onFinder() && posPending()) posHide(true);
   setInterval(() => { if ((!posRestore && !posArmed) || !onFinder() || Date.now() - posHideAt > 20000) posHide(false); }, 1000);   // 見張り: 隠したままにしない
   let posSaveT = 0;
@@ -2226,22 +2249,36 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     const st = pgState(panel); if (!st.cur) return;
     let asin = '', off = 0;
     for (const c of list.querySelectorAll('.kfm-c[data-asin]')) { const r = c.getBoundingClientRect(); if (r.bottom > 60) { asin = c.dataset.asin; off = Math.round(r.top); break; } }
-    posSet({ hash: location.hash, page: st.cur, total: st.total, asin, off, y: Math.round(window.scrollY) });
+    posSet({ url: location.pathname + location.hash, hash: location.hash, page: st.cur, total: st.total, asin, off, y: Math.round(window.scrollY) });
   }
   const posSaveSoon = () => { clearTimeout(posSaveT); posSaveT = setTimeout(posSave, 400); };
   window.addEventListener('scroll', () => { if (onFinder() && !posRestore) posSaveSoon(); }, { passive: true });
   window.addEventListener('pagehide', () => { if (onFinder()) posSave(); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && onFinder()) posSave(); });   // v0.1.28: タブを離れる瞬間にも保存（あとで見る送信・リンク移動など）
+  window.addEventListener('popstate', () => { if (onFinder()) { posArmed = true; posRestore = null; posHide(posPending()); } });   // v0.1.28: パス遷移の戻りでも復元を武装
+  // v0.1.28: 新規検索の印。押した瞬間に古い位置記録を消し、結果が出たら先頭から表示する
+  const NS_KEY = 'kfmNewSearchAt';
+  document.addEventListener('click', e => { const b = e.target && e.target.closest && e.target.closest('#filterSubmit'); if (!b) return; try { sessionStorage.setItem(NS_KEY, String(Date.now())); } catch (err) {} posSet(null); }, true);
   window.addEventListener('hashchange', () => { if (onFinder()) { posArmed = true; posRestore = null; posHide(posPending()); } else posHide(false); });
   const posCancel = () => { if (posRestore) { posRestore = null; posHide(false); posSaveSoon(); } };
   ['touchstart', 'wheel', 'keydown', 'mousedown'].forEach(ev => window.addEventListener(ev, e => { if (e.isTrusted) posCancel(); }, { passive: true, capture: true }));
   function posTick() {
     if (!onFinder()) return;
-    const panel = posPanel(); if (!panel) return;
-    const st = pgState(panel); if (!st.cur) return;
+    const panel = posPanel();
+    const st = panel ? pgState(panel) : { cur: 0, total: '' };
+    if (!st.cur) {
+      // v0.1.28: ページ番号が読めないまま4秒を超えたら、隠し続けず y 位置だけでも戻す
+      if (posArmed && posHideAt && Date.now() - posHideAt > 4000) {
+        const rec = posGet(); posArmed = false;
+        if (rec && (rec.url ? rec.url === location.pathname + location.hash : rec.hash === location.hash) && rec.y) window.scrollTo(0, rec.y);
+        posHide(false);
+      }
+      return;
+    }
     if (posArmed) {
       posArmed = false;
       const rec = posGet();
-      if (!rec || rec.hash !== location.hash || (rec.total && st.total && rec.total !== st.total)) { posSet(null); posHide(false); posSaveSoon(); return; }   // 別の検索・条件変更
+      if (!rec || (rec.url ? rec.url !== location.pathname + location.hash : rec.hash !== location.hash) || (rec.total && st.total && rec.total !== st.total)) { posSet(null); posHide(false); posSaveSoon(); return; }   // 別の検索・条件変更
       if (rec.page <= 1 && !rec.asin && !rec.y) { posHide(false); posSaveSoon(); return; }
       posHide(true);
       posRestore = { rec, t0: Date.now(), clickAt: 0, lastCur: 0 };
@@ -2265,6 +2302,7 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
   }
   function leaveFinder() {
     ['kfm-sort', 'kfm-sheet', 'kfm-cols', 'kfm-ac-done', 'kfm-bb-tog', 'kfm-ver-dbg'].forEach(i => { const e = document.getElementById(i); if (e && !(i === 'kfm-sheet' && onManage())) e.remove(); }); kc(document.documentElement, 'kfm-cols-open', false);
+    kc(document.documentElement, 'kfm-results', false); const vv2 = document.getElementById('kfm-ver'); if (vv2) vv2.style.bottom = '';
     kc(document.documentElement, 'kfm-bb-min', false);
     const pg = document.getElementById('kfm-pager'); if (pg) pg.remove();
     document.querySelectorAll('.kfm-gridhost').forEach(w => w.classList.remove('kfm-gridhost'));
@@ -3600,6 +3638,8 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
   window.addEventListener('hashchange', () => { if (!onManage()) tmLeave(); });
   function run() {
     timer = 0;
+    // v0.1.28: パス遷移でファインダーへ戻ってきたら位置復元を武装し直す（製品ページ等からの戻り）
+    if (location.pathname !== run._lp) { const was = run._lp; run._lp = location.pathname; if (was !== undefined && onFinder()) { posArmed = true; posRestore = null; posHide(posPending()); } }
     if (mq.matches && document.body) { try { numericKeyboards(); } catch (e) {} verBadge(); }
     if (isTyping()) { timer = setTimeout(run, 1000); return; }
     if (scrollBusy()) { timer = setTimeout(run, 400); return; }   // v0.0.33: スクロール中はDOMを触らない
