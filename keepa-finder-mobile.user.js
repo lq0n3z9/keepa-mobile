@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.28
+// @version      0.1.29
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・あとで見るリスト・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -87,7 +87,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.28';
+  const VERSION = 'v0.1.29';
   // 設定欄の初期表示用。キーは入れない。保存するまでこのURLへは送らない。
   const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyi2br_ilYXZ4w_ne-x64eWk4wZF473W3zT5uRlXSeIeXIU6YJtNFiLaM9lkZnwg3sVrA/exec';
   const KFM_TEST = /(?:^|[?&])kfmtest=1(?:&|$)/.test(location.search || '')
@@ -164,6 +164,7 @@
  html.kfm-bb-min body .kfm-bottombar #filterSubmit{flex:1 1 auto!important;width:auto!important;min-width:0!important}
  html.kfm-bb-min body .kfm-bottombar{padding-top:12px!important}
  html.kfm-kb #kfm-bb-tog,html.kfm:not(:has(.kfm-bottombar)) #kfm-bb-tog{display:none!important}
+html.kfm-results #kfm-bb-tog{display:none!important}   /* v0.1.29: 結果画面ではフォーム用バー開閉ボタンは出さない（カードの上に浮くため） */
  html.kfm.kfm-finder .grid-filter-form,html.kfm.kfm-finder #grid-form-finder{padding-bottom:calc(var(--kfm-bbh,120px) + 24px)!important}
  html.kfm-kb #kfm-ac-done{bottom:var(--kfm-kb,0px)!important;padding-bottom:10px!important}
  html.kfm-kb body .generalOverlay:has(.grid-filter-form--view-only),html.kfm-kb body .generalOverlay.kfm-afov{top:calc(var(--kfm-vvtop,0px) + 8px)!important;max-height:calc(var(--kfm-vvh,100vh) - 16px)!important}
@@ -675,6 +676,14 @@ html.kfm-results .grid-wrapper:has(#kfm-list){overflow:visible!important}
     matrix 行は .filter-range を横に並べる土台の上に乗るため、ラッパーごと1列に倒す */
  html.kfm.kfm-finder body #filterForm{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
  html.kfm.kfm-finder body #filterForm section.card{width:100%!important;max-width:100%!important;min-width:0!important;box-sizing:border-box!important}
+ /* v0.1.29: フォームの行間・節間の余白を詰める（区切り線の上下に残る空白対策） */
+ html.kfm.kfm-finder body #filterForm .filter-row{padding-top:2px!important;padding-bottom:2px!important;margin-top:0!important;margin-bottom:0!important}
+ html.kfm.kfm-finder body #filterForm section.card{margin-bottom:8px!important}
+ html.kfm.kfm-finder body #filterForm .section-content{padding-top:2px!important;padding-bottom:4px!important}
+ html.kfm.kfm-finder body #filterForm .section-header{margin-bottom:0!important;padding-bottom:4px!important}
+ html.kfm.kfm-finder body #filterForm .filter-range{margin:2px 0!important}
+ html.kfm.kfm-finder body #filterForm .filter-row--label{margin:2px 0!important}
+ html.kfm.kfm-finder body #filterForm hr{margin:4px 0!important}
  html.kfm.kfm-finder body .filter-row--matrix>div,html.kfm.kfm-finder body .filter-row>div{display:block!important;width:100%!important;max-width:100%!important;min-width:0!important;grid-template-columns:1fr!important;box-sizing:border-box!important}
  html.kfm.kfm-finder body .filter-row--matrix .filter-range{display:block!important;width:100%!important;max-width:100%!important;margin:4px 0!important;float:none!important}
  html.kfm.kfm-finder body .filter-range--seg{display:flex!important;flex-wrap:wrap;align-items:center;gap:6px;width:100%!important;margin:3px 0}
@@ -1796,6 +1805,29 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
           })();
         kc(r, 'kfm-allinactive', !extra && [...cells].every(c => c.querySelector('.inactive')));
       });
+    });
+  }
+  // ---- v0.1.29: フォーム内の「中身が無いのに高さだけ残っている」要素を畳んで空白を埋める ----
+  let feLastRun = 0, feLastSig = '';
+  function collapseFormEmpties() {
+    const form = document.getElementById('filterForm'); if (!form) return;
+    const rows = form.querySelectorAll('.filter-row, .filter-range');
+    const sig = rows.length + '|' + form.childElementCount;
+    const now = Date.now();
+    if (sig === feLastSig && now - feLastRun < 3000) return;
+    feLastSig = sig; feLastRun = now;
+    rows.forEach(elm => {
+      if (elm.classList.contains('kfm-emptied') || elm.closest('.kfm-bottombar, #kfm-list')) return;
+      if (elm.contains(document.activeElement)) return;
+      const h = elm.offsetHeight || elm.getBoundingClientRect().height;
+      if (h < 24) return;
+      const txt = (elm.innerText || '').trim();
+      if (txt) return;
+      const media = [...elm.querySelectorAll('img, canvas, svg, video')].some(m => m.getClientRects().length);
+      if (media) return;
+      const ctrls = [...elm.querySelectorAll('input, select, textarea, button, [contenteditable="true"]')];
+      const anyVisible = ctrls.some(c => c.getClientRects().length);
+      if (!anyVisible) elm.classList.add('kfm-emptied');
     });
   }
   // ---- 並び替え（Keepa の本物のヘッダーをクリック＝全ページ対象のサーバー側ソート）----
@@ -3657,7 +3689,7 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     if (!on || !document.body) return;
     setViewport(); badge();
     busy = true;
-    try { cardify(); if (onFinder()) { groupChecks(); fixRanges(); numericKeyboards(); bottomBar(); filterEdit(); activeFilterPopup(); const l = document.getElementById('kfm-list'); if (l) sortBar(l); fixOverflow(); } colSheetTick(); acTick();
+    try { cardify(); if (onFinder()) { groupChecks(); fixRanges(); numericKeyboards(); bottomBar(); filterEdit(); activeFilterPopup(); collapseFormEmpties(); const l = document.getElementById('kfm-list'); if (l) sortBar(l); fixOverflow(); } colSheetTick(); acTick();
       if (onFinder()) { const w = document.querySelector('.ag-root-wrapper'), pg = document.getElementById('kfm-pager');   // v0.1.18: 画面の切り替わりを取りこぼさない
         if (w && (!pg || (pg.style.display === 'none') === finderResultsViewActive())) { try { updatePager(w); } catch (e) {} } } }
     finally { setTimeout(() => { busy = false; }, 0); }
