@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Keepa 製品ファインダー – iPhone表示
 // @namespace    keepa-finder-mobile
-// @version      0.1.29
+// @version      0.1.30
 // @description  KeepaをiPhoneで使いやすくする（製品ファインダーのカード表示・あとで見るリスト・トラッキング設定・トラッキング整理など）
 // @match        https://keepa.com/*
 // @match        https://www.keepa.com/*
@@ -87,7 +87,7 @@
   window.addEventListener('load', () => [300, 1500].forEach(t => setTimeout(measureProduct, t)));
   if (document.documentElement) armViewportWatch();
   else document.addEventListener('DOMContentLoaded', armViewportWatch);
-  const VERSION = 'v0.1.29';
+  const VERSION = 'v0.1.30';
   // 設定欄の初期表示用。キーは入れない。保存するまでこのURLへは送らない。
   const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbyi2br_ilYXZ4w_ne-x64eWk4wZF473W3zT5uRlXSeIeXIU6YJtNFiLaM9lkZnwg3sVrA/exec';
   const KFM_TEST = /(?:^|[?&])kfmtest=1(?:&|$)/.test(location.search || '')
@@ -1156,6 +1156,34 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
     const R = Math.round(P * pct / 100);
     return { P, F, R, N: P - F - R };
   }
+  // ---- v0.1.30: グラフ画像は同時多発だと graph.keepa.com に弾かれて途中から表示されなくなる。
+  // 画面に近づいたものから、同時4件までに絞って読み込み、失敗したら間隔を空けて3回までやり直す ----
+  const graphWait = new Set(); let graphBusy = 0;
+  const graphIO = ('IntersectionObserver' in window) ? new IntersectionObserver(es => {
+    es.forEach(en => { if (en.isIntersecting) { try { graphIO.unobserve(en.target); } catch (e) {} pumpGraph(en.target); } });
+  }, { rootMargin: '800px 0px' }) : null;
+  function queueGraph(gi) { if (!gi || !gi.dataset.gsrc) return; if (graphIO) graphIO.observe(gi); else pumpGraph(gi); }
+  function pumpGraph(gi) {
+    if (!gi || !gi.isConnected) return;
+    if (graphBusy >= 4) { graphWait.add(gi); return; }
+    startGraph(gi);
+  }
+  function nextGraph() {
+    for (const gi of [...graphWait]) { graphWait.delete(gi); if (gi.isConnected) { pumpGraph(gi); break; } }
+  }
+  function startGraph(gi) {
+    const url = gi.dataset.gsrc; if (!url) return;
+    graphBusy++;
+    gi.onload = () => { graphBusy--; nextGraph(); };
+    gi.onerror = () => {
+      graphBusy--;
+      const tries = +(gi.dataset.gtries || 0) + 1; gi.dataset.gtries = tries;
+      if (tries <= 3 && gi.isConnected) setTimeout(() => pumpGraph(gi), [1500, 4000, 9000][tries - 1] || 9000);
+      else { const holder = gi.closest('.kfm-g'); if (holder) holder.remove(); else gi.remove(); }
+      nextGraph();
+    };
+    gi.src = url;
+  }
   function card(d) {
     const c = el('div', 'kfm-c'); c.dataset.idx = d.idx; if (d.asin) c.dataset.asin = d.asin;
     const h = el('div', 'kfm-h');
@@ -1192,9 +1220,9 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
       const g = el('a', 'kfm-g'); g.href = 'https://keepa.com/#!product/5-' + d.asin; g.target = '_blank'; g.rel = 'noopener';
       g.addEventListener('click', e => e.stopPropagation());
       const gi = el('img'); gi.loading = 'lazy'; gi.alt = '価格履歴'; gi.referrerPolicy = 'no-referrer';
-      gi.src = 'https://graph.keepa.com/pricehistory.png?asin=' + encodeURIComponent(d.asin) +
+      gi.dataset.gsrc = 'https://graph.keepa.com/pricehistory.png?asin=' + encodeURIComponent(d.asin) +
         '&domain=5&salesrank=1&amazon=1&new=1&bb=1&fba=1&fbm=1&range=90&width=600&height=200';
-      gi.onerror = () => g.remove(); g.appendChild(gi); c.appendChild(g);
+      g.appendChild(gi); c.appendChild(g); queueGraph(gi);
     }
     const TOP = ['monthlySold', 'SALES_current', 'BUY_BOX_SHIPPING_current', 'NEW_current'],
       TOPL = { monthlySold: '月間販売数', SALES_current: 'ランキング', BUY_BOX_SHIPPING_current: 'Buy Box価格', NEW_current: '新品価格' };
@@ -1684,8 +1712,8 @@ html.kfm-track #track{padding-left:max(12px,var(--kfm-sal))!important;padding-ri
         info.appendChild(el('div', 'kfm-li-m', `${it.asin}｜分岐 ${it.breakEven !== '' && it.breakEven != null ? yen(+it.breakEven) : '–'}｜追加 ${fmtDate(it.addedAt)}`));
         if (cfg.listGraph) {
           const g = el('img', 'kfm-li-g'); g.loading = 'lazy'; g.alt = '価格履歴'; g.referrerPolicy = 'no-referrer';
-          g.src = 'https://graph.keepa.com/pricehistory.png?asin=' + encodeURIComponent(it.asin) + '&domain=5&salesrank=1&amazon=1&new=1&bb=1&fba=1&fbm=1&range=90&width=400&height=120';
-          g.onerror = () => g.remove(); info.appendChild(g);
+          g.dataset.gsrc = 'https://graph.keepa.com/pricehistory.png?asin=' + encodeURIComponent(it.asin) + '&domain=5&salesrank=1&amazon=1&new=1&bb=1&fba=1&fbm=1&range=90&width=400&height=120';
+          info.appendChild(g); queueGraph(g);
         }
         const del = el('button', 'kfm-li-d', '削除'); del.type = 'button';
         del.addEventListener('click', async () => { if (await deleteItem(it.asin, it.title)) { const i = items.indexOf(it); if (i >= 0) items.splice(i, 1); draw(); } });
